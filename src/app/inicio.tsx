@@ -1,7 +1,8 @@
-//inicio.tsx
+// src/app/inicio.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Badge from '../components/Badge';
 import FilaItem from '../components/FilaItem';
 import GradientBox from '../components/GradientBox';
@@ -23,6 +24,7 @@ const CANCIONES = [
 ];
 
 export default function Inicio() {
+  const router = useRouter();
   const { colores } = useTema();
   const styles = useMemo(() => crearEstilos(colores), [colores]);
   const [busqueda, setBusqueda] = useState('');
@@ -42,13 +44,21 @@ export default function Inicio() {
 
       <View style={styles.seccionHeader}>
         <Text style={styles.seccion}>Listas recientes</Text>
-        <Text style={styles.verTodas}>Ver todas</Text>
+        <Pressable onPress={() => router.replace('/mis-listas')}>
+          <Text style={styles.verTodas}>Ver todas</Text>
+        </Pressable>
       </View>
       <View style={styles.listasFila}>
         {LISTAS.map((lista) => (
-          <GradientBox key={lista.id} colores={lista.colores} style={styles.listaCard}>
-            <Ionicons name="musical-notes-outline" size={16} color="#FFFFFF" />
-          </GradientBox>
+          <Pressable
+            key={lista.id}
+            style={{ flex: 1 }}
+            onPress={() => router.replace('/mis-listas')}
+          >
+            <GradientBox colores={lista.colores} style={styles.listaCard}>
+              <Ionicons name="musical-notes-outline" size={16} color="#FFFFFF" />
+            </GradientBox>
+          </Pressable>
         ))}
       </View>
 
@@ -60,6 +70,7 @@ export default function Inicio() {
           titulo={c.titulo}
           detalle={c.detalle}
           derecha={<Badge texto={c.tono} />}
+          onPress={() => router.replace('/mis-canciones')}
         />
       ))}
     </Pantalla>

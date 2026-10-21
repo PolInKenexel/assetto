@@ -1,4 +1,6 @@
+// src/app/mis-listas.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import GradientBox from '../components/GradientBox';
@@ -13,11 +15,12 @@ const LISTAS = [
 ];
 
 export default function MisListas() {
+  const router = useRouter();
   const { colores } = useTema();
   const styles = useMemo(() => crearEstilos(colores), [colores]);
 
   const nuevaLista = () => {
-    console.log('Nueva lista');
+    router.push('/crear-lista');
   };
 
   const fab = (
