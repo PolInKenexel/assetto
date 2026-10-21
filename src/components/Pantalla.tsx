@@ -13,11 +13,14 @@ type Props = {
 };
 
 export default function Pantalla({ titulo, activo = 0, flotante, children }: Props) {
+    // Secuencia intercalada: Inicio (0) = naranja, Listas (1) = azul, Canciones (3) = naranja, Papelera (4) = azul
+    const colorLinea = activo === 1 || activo === 4 ? 'azul' : 'naranja';
+
     return (
         <View style={styles.container}>
             <Fondo />
             <ScrollView contentContainerStyle={styles.scroll}>
-                <Header titulo={titulo} />
+                <Header titulo={titulo} colorLinea={colorLinea} />
                 {children}
             </ScrollView>
             {flotante}
