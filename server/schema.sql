@@ -29,12 +29,13 @@ CREATE TABLE `canciones` (
   `nombre` varchar(200) NOT NULL,
   `tempo` smallint(5) unsigned DEFAULT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
-  `tonalidad` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `tonalidades` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`tonalidades`)),
+  `fecha_eliminacion` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id_cancion`),
   KEY `fk_canciones_usuarios` (`id_usuario`),
   CONSTRAINT `fk_canciones_usuarios` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE,
   CONSTRAINT `chk_canciones_tempo` CHECK (`tempo` is null or `tempo` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -51,8 +52,8 @@ CREATE TABLE `canciones_categorias` (
   PRIMARY KEY (`id_cancion_categoria`,`id_categoria`,`id_cancion`),
   KEY `canciones_categorias_canciones_FK` (`id_cancion`),
   KEY `canciones_categorias_categorias_FK` (`id_categoria`),
-  CONSTRAINT `canciones_categorias_canciones_FK` FOREIGN KEY (`id_cancion`) REFERENCES `canciones` (`id_cancion`),
-  CONSTRAINT `canciones_categorias_categorias_FK` FOREIGN KEY (`id_categoria`) REFERENCES `categorias` (`id_categoria`)
+  CONSTRAINT `canciones_categorias_canciones_FK` FOREIGN KEY (`id_cancion`) REFERENCES `canciones` (`id_cancion`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `canciones_categorias_categorias_FK` FOREIGN KEY (`id_categoria`) REFERENCES `categorias` (`id_categoria`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -65,11 +66,14 @@ DROP TABLE IF EXISTS `categorias`;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categorias` (
   `id_categoria` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `id_usuario` int(10) unsigned NOT NULL,
+  `id_usuario` int(10) unsigned DEFAULT NULL,
   `nombre` varchar(100) NOT NULL,
+  `publico` tinyint(1) NOT NULL DEFAULT 0,
+  `tipo` varchar(30) NOT NULL DEFAULT 'genero',
   PRIMARY KEY (`id_categoria`),
   UNIQUE KEY `uq_categoria_usuario` (`id_usuario`,`nombre`),
-  CONSTRAINT `fk_categorias_usuarios` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+  CONSTRAINT `fk_categorias_usuarios` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE,
+  CONSTRAINT `chk_categorias_tipo` CHECK (`tipo` in ('genero','tematica','instrumento'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -85,6 +89,7 @@ CREATE TABLE `listas` (
   `id_usuario` int(10) unsigned NOT NULL,
   `nombre` varchar(150) NOT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  `fecha_eliminacion` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id_lista`),
   KEY `fk_listas_usuarios` (`id_usuario`),
   CONSTRAINT `fk_listas_usuarios` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
@@ -103,11 +108,13 @@ CREATE TABLE `listas_canciones` (
   `id_cancion` int(10) unsigned NOT NULL,
   `posicion` int(10) unsigned NOT NULL,
   `id_lista_cancion` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `grupo` char(1) DEFAULT NULL,
   PRIMARY KEY (`id_lista_cancion`,`id_cancion`,`id_lista`),
   UNIQUE KEY `uq_lista_posicion` (`id_lista`,`posicion`),
   KEY `listas_canciones_canciones_FK` (`id_cancion`),
-  CONSTRAINT `listas_canciones_canciones_FK` FOREIGN KEY (`id_cancion`) REFERENCES `canciones` (`id_cancion`),
-  CONSTRAINT `listas_canciones_listas_FK` FOREIGN KEY (`id_lista`) REFERENCES `listas` (`id_lista`)
+  CONSTRAINT `listas_canciones_canciones_FK` FOREIGN KEY (`id_cancion`) REFERENCES `canciones` (`id_cancion`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `listas_canciones_listas_FK` FOREIGN KEY (`id_lista`) REFERENCES `listas` (`id_lista`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_listas_canciones_grupo` CHECK (`grupo` is null or `grupo` in ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -125,9 +132,10 @@ CREATE TABLE `usuarios` (
   `password_hash` varchar(255) NOT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `apellido` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `fecha_eliminacion` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -143,4 +151,4 @@ CREATE TABLE `usuarios` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-13  7:10:47
+-- Dump completed on 2026-10-30 15:31:18
