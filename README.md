@@ -32,38 +32,38 @@ El atractivo principal de nuestra aplicación es almacenar tu repertorio persona
 Ya pueden ignorar esta parte, solo la necesitamos para visualizar algunas cosas, es todo:
 
 🏠assetto <br>
-│
-├─ 📁.expo
-├─ 📁.vscode
-├─ 📁assets
-├─ 📁node_modules
-├─ 📁scripts
-├─ 📁server
-│  │
-│  ├─ 📁node_modules
-│  ├─ .env
-│  ├─ app.js
-│  ├─ database.js
-│  ├─ package.json
-│  ├─ package-lock.json
-│  ├─ schema.sql
-│  └─ yarn.lock
-├─ 📁src
-│  │
-│  ├─ 📁app
-│  ├─ 📁components
-│  ├─ 📁constants
-│  ├─ 📁context
-│  ├─ 📁hooks
-│  └─ global.css
-├─ .gitignore
-├─ AGENTS.md
-├─ app.json
-├─ expo-env.d.ts
-├─ LICENSE
-├─ metro.config.js
-├─ package.json
-├─ package-lock.json
-├─ README.md
-├─ svg.d.ts
-└─ tsconfig.json
+│ <br>
+├─ 📁.expo <br>
+├─ 📁.vscode <br>
+├─ 📁assets <br>
+├─ 📁node_modules <br>
+├─ 📁scripts <br>
+├─ 📁server <br>
+│  │ <br>
+│  ├─ 📁node_modules <br>
+│  ├─ .env <br>
+│  ├─ app.js <br>
+│  ├─ database.js <br>
+│  ├─ package.json <br>
+│  ├─ package-lock.json <br>
+│  ├─ schema.sql <br>
+│  └─ yarn.lock <br>
+├─ 📁src <br>
+│  │ <br>
+│  ├─ 📁app <br>
+│  ├─ 📁components <br>
+│  ├─ 📁constants <br>
+│  ├─ 📁context <br>
+│  ├─ 📁hooks <br>
+│  └─ global.css <br>
+├─ .gitignore <br>
+├─ AGENTS.md <br>
+├─ app.json <br>
+├─ expo-env.d.ts <br>
+├─ LICENSE <br>
+├─ metro.config.js <br>
+├─ package.json <br>
+├─ package-lock.json <br>
+├─ README.md <br>
+├─ svg.d.ts <br>
+└─ tsconfig.json <br>
