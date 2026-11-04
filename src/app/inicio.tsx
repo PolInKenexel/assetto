@@ -16,7 +16,7 @@ const LISTAS = [
   { id: 3, colores: ['#E4ECFB', '#FCE6D6'] },
 ];
 
-const CANCIONES = [
+const CANCIONES = [ //canciones de prueba
   { id: 1, titulo: 'Believer', detalle: '96 BPM · voz + guitarra', tono: 'G', colores: ['#24509E', '#C4571A'] },
   { id: 2, titulo: 'Moonlight Sonata 3rd', detalle: '72 BPM · piano', tono: 'Dm', colores: ['#142C57', '#F0752A'] },
   { id: 3, titulo: 'Winter', detalle: '110 BPM · trío', tono: 'Am', colores: ['#5A7FB8', '#FCE6D6'] },

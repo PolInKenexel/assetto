@@ -1,3 +1,4 @@
+// src/components/AuthInput.tsx
 import { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { Tema } from '../constants/theme';

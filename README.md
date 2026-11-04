@@ -1,4 +1,4 @@
-# Welcome to your Expo app 👋
+# Welcome to Assetto App 
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
@@ -9,7 +9,6 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    ```bash
    npm install
    ```
-
 2. Start the app
 
    ```bash
@@ -37,9 +36,9 @@ This command will move the starter code to the **app-example** directory and cre
 
 ### Other setup steps
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+- To set up ESLint for linting, run `npx expo lint`, or follow our guide on [&#34;Using ESLint and Prettier&#34;](https://docs.expo.dev/guides/using-eslint/)
+- If you'd like to set up unit testing, follow our guide on [&#34;Unit Testing with Jest&#34;](https://docs.expo.dev/develop/unit-testing/)
+- Learn more about the TypeScript setup in this template in our guide on [&#34;Using TypeScript&#34;](https://docs.expo.dev/guides/typescript/)
 
 ## Learn more
 

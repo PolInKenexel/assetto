@@ -1,3 +1,4 @@
+// src/app/instrumentos.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -17,7 +18,7 @@ const ICONOS: Record<string, any> = {
   Voz: 'mic-outline',
 };
 
-const INSTRUMENTOS = [
+const INSTRUMENTOS = [ //instrumentos de prueba
   { id: 1, nombre: 'Guitarra acústica', detalle: 'Afinación estándar · rango E2–E5', categoria: 'Cuerda', principal: true, colores: ['#3A5BA9', '#E8793A'] },
   { id: 2, nombre: 'Violín', detalle: 'Afinación G3–D4–A4–E5', categoria: 'Cuerda', principal: false, colores: ['#1F2F55', '#E8A23A'] },
   { id: 3, nombre: 'Piano', detalle: '88 teclas · rango A0–C8', categoria: 'Teclado', principal: false, colores: ['#5A7FB8', '#F0B070'] },

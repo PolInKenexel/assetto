@@ -36,6 +36,7 @@ export default function MisCanciones() {
 
   const canciones = filtrarCanciones(CANCIONES_DEMO, filtros);
 
+  //ver si hay filtros de BPM activos para mostrar el chip correspondiente
   const hayBpm = filtros.bpmMin !== '' || filtros.bpmMax !== '';
   const textoBpm = `BPM: ${filtros.bpmMin || '…'}–${filtros.bpmMax || '…'}`;
 

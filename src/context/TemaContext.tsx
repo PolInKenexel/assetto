@@ -1,4 +1,4 @@
-//TemaContext.tsx
+// src/context/TemaContext.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';

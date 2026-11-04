@@ -1,3 +1,4 @@
+// src/app/index.tsx
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';

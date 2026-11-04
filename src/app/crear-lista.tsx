@@ -1,3 +1,4 @@
+// src/app/crear-lista.tsx
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +31,7 @@ export default function CrearLista() {
   const [nombre, setNombre] = useState(''); // listas.nombre (máx. 150)
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
-  // Canciones elegidas, en orden: el lugar en el arreglo es la posición
+  // Canciones elegidas
   const [seleccionadas, setSeleccionadas] = useState<Cancion[]>([]);
 
   const cambiar = (campo: keyof Filtros, valor: string) => {
@@ -71,16 +72,15 @@ export default function CrearLista() {
       Alert.alert('Falta el nombre', 'Escribe un nombre para la lista.');
       return;
     }
-    // Datos listos para la base de datos:
-    // INSERT en `listas` (nombre) y una fila en `listas_canciones` por canción
+    // Insertar datos en la base de datos
     const lista = {
       nombre: nombre.trim(),
       canciones: seleccionadas.map((cancion, i) => ({
         id_cancion: cancion.id_cancion,
-        posicion: i + 1, // listas_canciones.posicion (única por lista)
+        posicion: i + 1, 
       })),
     };
-    console.log(lista); // TODO: enviar `lista` al servidor
+    console.log(lista); 
     router.back();
   };
 

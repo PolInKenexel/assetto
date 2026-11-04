@@ -1,3 +1,4 @@
+// src/app/registro.tsx
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

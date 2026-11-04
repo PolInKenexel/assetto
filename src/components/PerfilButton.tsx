@@ -1,3 +1,4 @@
+// src/components/PerfilButton.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
@@ -10,6 +11,7 @@ export default function PerfilButton() {
     const { colores } = useTema();
     const styles = useMemo(() => crearEstilos(colores), [colores]);
 
+    //accion del boton de perfil
     return (
         <Pressable style={styles.avatar} onPress={() => router.push('/perfil')}>
             <Ionicons name="person-outline" size={18} color={colores.texto} />
