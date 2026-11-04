@@ -31,7 +31,7 @@ El atractivo principal de nuestra aplicación es almacenar tu repertorio persona
 
 Ya pueden ignorar esta parte, solo la necesitamos para visualizar algunas cosas, es todo:
 
-🏠assetto
+🏠assetto <br>
 │
 ├─ 📁.expo
 ├─ 📁.vscode
