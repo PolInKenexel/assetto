@@ -1,3 +1,4 @@
+// src/app/agregar-cancion.tsx
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,7 +27,7 @@ function tempoValido(texto: string): boolean {
 
 type Categoria = { id_categoria: number; nombre: string };
 
-// Tabla `categorias` del usuario. Reemplázalo con los datos reales del servidor.
+// Datos de ejemplo
 const CATEGORIAS_DEMO: Categoria[] = [
   { id_categoria: 1, nombre: 'Vals' },
   { id_categoria: 2, nombre: 'Balada' },
@@ -35,7 +36,7 @@ const CATEGORIAS_DEMO: Categoria[] = [
   { id_categoria: 5, nombre: 'Infantil' },
 ];
 
-// Lista fija de instrumentos. Requiere tablas nuevas en la base de datos (instrumentos y canciones_instrumentos)
+// Instrumentos de ejemplo
 const INSTRUMENTOS_LISTA = [
   { id_instrumento: 1, nombre: 'Guitarra' },
   { id_instrumento: 2, nombre: 'Piano' },
@@ -56,7 +57,7 @@ type CancionNueva = {
 function FormManual({ onGuardar }: { onGuardar: (cancion: CancionNueva) => void }) {
   const c = useColores();
   const [nombre, setNombre] = useState(''); // canciones.nombre (obligatorio, máx. 200)
-  const [tonalidades, setTonalidades] = useState<string[]>([]); // una canción puede tener varias (máx. 10 caracteres cada una)
+  const [tonalidades, setTonalidades] = useState<string[]>([]); // una canción puede tener varias tonalidades
   const [nuevaTonalidad, setNuevaTonalidad] = useState('');
   const [tempo, setTempo] = useState(''); // canciones.tempo (opcional)
   const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_DEMO);
@@ -105,7 +106,7 @@ function FormManual({ onGuardar }: { onGuardar: (cancion: CancionNueva) => void 
       Alert.alert('Esa categoría ya existe');
       return;
     }
-    // TODO: guardar en `categorias` y usar el id_categoria que regrese el servidor
+    // Guardar datos en el servidor
     const nueva: Categoria = { id_categoria: Date.now(), nombre: texto };
     setCategorias([...categorias, nueva]);
     setCategoriasElegidas([...categoriasElegidas, nueva.id_categoria]);
@@ -126,8 +127,7 @@ function FormManual({ onGuardar }: { onGuardar: (cancion: CancionNueva) => void 
       Alert.alert('Tempo no válido', 'Escribe un número entero mayor que 0 o déjalo vacío.');
       return;
     }
-    // Datos listos para la base de datos:
-    // INSERT en `canciones`, `canciones_categorias` y las tablas nuevas de tonalidades e instrumentos
+    // Mandar datos a la base de datos
     onGuardar({
       nombre: nombre.trim(),
       tonalidades,
@@ -248,7 +248,7 @@ type Fuente = 'YouTube' | 'Spotify';
 type CancionEncontrada = {
   id: string;
   nombre: string;
-  tonalidades: string; // texto separado por comas, ej. "G, Em"
+  tonalidades: string; // texto separado por comas
   tempo: string;
 };
 
@@ -258,7 +258,7 @@ type CancionImportada = {
   tempo: number | null;
 };
 
-// Una playlist solo trae el nombre. Reemplázalo con la respuesta real de la API.
+// datos de prueba
 const CANCIONES_PLAYLIST_DEMO = [
   { id: '1', nombre: 'Vals en Sol mayor' },
   { id: '2', nombre: 'Balada nocturna' },
@@ -335,7 +335,7 @@ function FormImportar({ onAgregar }: { onAgregar: (canciones: CancionImportada[]
   const [elegidas, setElegidas] = useState<string[]>([]);
 
   const buscar = () => {
-    // TODO: llamar a la API de YouTube o Spotify con el link
+    // Llamar api para importar (ver si se puede o no)
     setEncontradas(CANCIONES_PLAYLIST_DEMO.map((x) => ({ ...x, tonalidades: '', tempo: '' })));
     setElegidas(CANCIONES_PLAYLIST_DEMO.map((x) => x.id));
   };
@@ -458,12 +458,12 @@ export default function AgregarCancion() {
   const [modo, setModo] = useState<Modo>('Manual');
 
   const guardarManual = (cancion: CancionNueva) => {
-    console.log(cancion); // TODO: enviar al servidor (canciones, canciones_categorias, tonalidades, instrumentos)
+    console.log(cancion); //Enviar al servidor (canciones, canciones_categorias, tonalidades, instrumentos)
     router.back();
   };
 
   const agregarImportadas = (canciones: CancionImportada[]) => {
-    console.log(canciones); // TODO: enviar al servidor
+    console.log(canciones); //Enviar al servidor
     router.back();
   };
 

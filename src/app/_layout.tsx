@@ -1,13 +1,15 @@
-//layout.tsx
+// src/app/layout.tsx
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { TemaProvider, useTema } from '../context/TemaContext';
 
 function Navegacion() {
+  // Obtener tema actual
   const { esOscuro } = useTema();
   return (
     <>
-      <StatusBar style={esOscuro ? 'light' : 'dark'} />
+      {/*Ajustar iconos y cabecera segun el tema*/}
+      <StatusBar style={esOscuro ? 'light' : 'dark'} /> 
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
     </>
   );

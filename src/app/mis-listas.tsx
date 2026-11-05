@@ -8,7 +8,7 @@ import Pantalla from '../components/Pantalla';
 import { Tema } from '../constants/theme';
 import { useTema } from '../context/TemaContext';
 
-const LISTAS = [
+const LISTAS = [//listas de prueba
   { id: 1, nombre: 'Ensayo jueves', canciones: 8, colores: ['#3A5BA9', '#E8793A'] },
   { id: 2, nombre: 'Boda Ana & Luis', canciones: 14, colores: ['#1F2F55', '#E8A23A'] },
   { id: 3, nombre: 'Set acústico', canciones: 6, colores: ['#3F6FC0', '#F0B070'] },

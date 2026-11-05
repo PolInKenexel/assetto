@@ -12,10 +12,10 @@ type Item = {
   ruta?: string;
 };
 
-const ITEMS: Item[] = [
+const ITEMS: Item[] = [//rutas en el menu inferior
   { icono: 'home-outline', ruta: '/inicio' },
   { icono: 'list-outline', ruta: '/mis-listas' },
-  { icono: 'add' },
+  { icono: 'add' },//tiene sus funcionalidades aparte
   { icono: 'musical-notes-outline', ruta: '/mis-canciones' },
   { icono: 'trash-outline', ruta: '/papelera' },
 ];

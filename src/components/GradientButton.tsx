@@ -1,3 +1,4 @@
+// src/components/GradientButton.tsx
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
 

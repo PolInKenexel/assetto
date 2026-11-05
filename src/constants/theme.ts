@@ -1,4 +1,4 @@
-//theme.ts
+// src/constants/theme.ts
 export const temas = {
     claro: {
         fondo: '#FFFFFF',

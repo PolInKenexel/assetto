@@ -1,4 +1,4 @@
-// Datos de ejemplo. Reemplázalos con las canciones reales que regrese el servidor (carpeta /server).
+// Datos de ejemplo.
 
 export type Cancion = {
   id_cancion: number;
@@ -39,7 +39,7 @@ export const CANCIONES_DEMO: Cancion[] = [
 
 const unicos = (lista: string[]): string[] => [...new Set(lista)];
 
-// Opciones de los filtros: salen de lo que ya hay guardado
+// Opciones de los filtros
 export const CATEGORIAS = unicos(CANCIONES_DEMO.flatMap((x) => x.categorias));
 export const INSTRUMENTOS = unicos(CANCIONES_DEMO.flatMap((x) => x.instrumentos));
 export const TONALIDADES = unicos(CANCIONES_DEMO.flatMap((x) => x.tonalidades));
