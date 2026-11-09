@@ -1,42 +1,104 @@
 // src/app/mis-canciones.tsx
-import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Pantalla from '../components/Pantalla';
 import {
   BarraBusqueda,
+  Campo,
   Chip,
   FilaFiltro,
-  Campo,
   SeccionTitulo,
   Tonalidades,
-  useColores,
   fuentes,
+  useColores,
 } from '../components/form';
 import {
-  CANCIONES_DEMO,
   CATEGORIAS,
+  FILTROS_VACIOS,
+  Filtros,
   INSTRUMENTOS,
   TONALIDADES,
-  FILTROS_VACIOS,
   filtrarCanciones,
-  Filtros,
 } from '../constants/cancionesDemo';
 
 type NombreFiltro = 'categoria' | 'tonalidad' | 'bpm' | 'instrumento';
 
 export default function MisCanciones() {
+  const router = useRouter();
   const c = useColores();
+  
+  const [cancionesDB, setCancionesDB] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [abierto, setAbierto] = useState<NombreFiltro | null>(null);
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  useEffect(() => {
+    const obtenerCanciones = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          router.replace('/');
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/canciones`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) router.replace('/');
+          return;
+        }
+
+        const data = await response.json();
+        
+        // Mapeamos los datos para que coincidan con la estructura que espera tu UI y tus filtros
+        const cancionesMapeadas = data.map((cancion: any) => {
+          let tonosParseados = [];
+          try {
+            tonosParseados = typeof cancion.tonalidades === 'string' 
+              ? JSON.parse(cancion.tonalidades) 
+              : cancion.tonalidades;
+          } catch (e) {
+            tonosParseados = [];
+          }
+
+          return {
+            ...cancion,
+            tonalidades: tonosParseados,
+            // El endpoint GET /canciones no hace JOIN con categorías todavía, 
+            // así que le pasamos un arreglo vacío por ahora para evitar errores.
+            categorias: [] 
+          };
+        });
+
+        setCancionesDB(cancionesMapeadas);
+      } catch (error) {
+        console.error('Error al obtener canciones:', error);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    obtenerCanciones();
+  }, []);
 
   const cambiar = (campo: keyof Filtros, valor: string) => {
     setFiltros({ ...filtros, [campo]: valor });
   };
 
-  const canciones = filtrarCanciones(CANCIONES_DEMO, filtros);
+  // Aplicamos tu función de filtrado a los datos reales de la base de datos
+  const canciones = filtrarCanciones(cancionesDB, filtros);
 
-  //ver si hay filtros de BPM activos para mostrar el chip correspondiente
   const hayBpm = filtros.bpmMin !== '' || filtros.bpmMax !== '';
   const textoBpm = `BPM: ${filtros.bpmMin || '…'}–${filtros.bpmMax || '…'}`;
 
@@ -62,7 +124,6 @@ export default function MisCanciones() {
         placeholder="Buscar canción"
       />
 
-      {/* Chips de filtro: tocar abre el panel; si ya hay un valor, tocar lo quita */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ marginBottom: 12 }}>
         <Chip
           texto={filtros.categoria ? `Categoría: ${filtros.categoria}` : 'Categoría'}
@@ -90,7 +151,6 @@ export default function MisCanciones() {
         />
       </ScrollView>
 
-      {/* Panel con las opciones del filtro abierto */}
       {abierto === 'categoria' && (
         <FilaFiltro
           titulo="Categoría"
@@ -135,43 +195,50 @@ export default function MisCanciones() {
         </View>
       )}
 
-      <SeccionTitulo texto={`${canciones.length} canciones`} />
+      {cargando ? (
+        <ActivityIndicator size="large" color={c.azul} style={{ marginTop: 40 }} />
+      ) : (
+        <>
+          <SeccionTitulo texto={`${canciones.length} canciones`} />
 
-      {canciones.length === 0 && (
-        <Text style={{ fontFamily: fuentes.normal, fontSize: 12, color: c.textoTenue }}>
-          Ninguna canción coincide con la búsqueda.
-        </Text>
+          {canciones.length === 0 && (
+            <Text style={{ fontFamily: fuentes.normal, fontSize: 12, color: c.textoTenue }}>
+              Ninguna canción coincide con la búsqueda.
+            </Text>
+          )}
+
+          {canciones.map((cancion, i) => (
+            <View
+              key={cancion.id_cancion}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: c.linea,
+              }}
+            >
+              <LinearGradient
+                colors={colores[i % colores.length] as [string, string]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 38, height: 38, borderRadius: 10 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ fontFamily: fuentes.negrita, fontWeight: '700', fontSize: 13.5, color: c.texto }}>
+                  {cancion.nombre}
+                </Text>
+                <Text style={{ fontFamily: fuentes.normal, fontSize: 11.5, color: c.textoTenue, marginTop: 2 }}>
+                  {cancion.tempo ? `${cancion.tempo} BPM` : 'Sin BPM'} 
+                  {cancion.categorias && cancion.categorias.length > 0 ? ` · ${cancion.categorias.join(', ')}` : ''}
+                </Text>
+              </View>
+              <Tonalidades lista={cancion.tonalidades} />
+            </View>
+          ))}
+        </>
       )}
-
-      {canciones.map((cancion, i) => (
-        <View
-          key={cancion.id_cancion}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            paddingVertical: 10,
-            borderBottomWidth: 1,
-            borderBottomColor: c.linea,
-          }}
-        >
-          <LinearGradient
-            colors={colores[i % colores.length] as [string, string]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ width: 38, height: 38, borderRadius: 10 }}
-          />
-          <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontFamily: fuentes.negrita, fontWeight: '700', fontSize: 13.5, color: c.texto }}>
-              {cancion.nombre}
-            </Text>
-            <Text style={{ fontFamily: fuentes.normal, fontSize: 11.5, color: c.textoTenue, marginTop: 2 }}>
-              {cancion.tempo ? `${cancion.tempo} BPM` : 'Sin BPM'} · {cancion.categorias.join(', ')}
-            </Text>
-          </View>
-          <Tonalidades lista={cancion.tonalidades} />
-        </View>
-      ))}
     </Pantalla>
   );
 }

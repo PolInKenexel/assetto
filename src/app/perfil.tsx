@@ -1,9 +1,10 @@
 // src/app/perfil.tsx
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import BottomNav from '../components/BottomNav';
 import Fondo from '../components/Fondo';
 import { ModoTema, Tema } from '../constants/theme';
@@ -21,8 +22,69 @@ export default function Perfil() {
   const styles = useMemo(() => crearEstilos(colores), [colores]);
   const [modoMusico, setModoMusico] = useState(true);
 
-  const cerrarSesion = () => {
-    router.replace('/');
+  // Estados para los datos de la base de datos
+  const [usuario, setUsuario] = useState<any>(null);
+  const [estadisticas, setEstadisticas] = useState({ canciones: 0, listas: 0 });
+  const [cargando, setCargando] = useState(true);
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  useEffect(() => {
+    const obtenerPerfil = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          router.replace('/');
+          return;
+        }
+
+        const opcionesFetch = {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        // Pedimos los datos del usuario, sus canciones y sus listas al mismo tiempo
+        const [resMe, resCanciones, resListas] = await Promise.all([
+          fetch(`${API_URL}/auth/me`, opcionesFetch),
+          fetch(`${API_URL}/canciones`, opcionesFetch),
+          fetch(`${API_URL}/listas`, opcionesFetch)
+        ]);
+
+        if (!resMe.ok) {
+          if (resMe.status === 401) router.replace('/');
+          return;
+        }
+
+        const dataMe = await resMe.json();
+        const dataCanciones = resCanciones.ok ? await resCanciones.json() : [];
+        const dataListas = resListas.ok ? await resListas.json() : [];
+
+        setUsuario(dataMe.usuario);
+        setEstadisticas({
+          canciones: dataCanciones.length,
+          listas: dataListas.length
+        });
+
+      } catch (error) {
+        console.error('Error al obtener perfil:', error);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    obtenerPerfil();
+  }, []);
+
+  const cerrarSesion = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      router.replace('/');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 
   return (
@@ -37,31 +99,41 @@ export default function Perfil() {
           <Text style={styles.titulo}>Perfil</Text>
         </View>
 
-        {/* Avatar */}
-        <View style={styles.avatarAnillo}>
-          <LinearGradient
-            colors={['#3A5BA9', '#E8793A']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatar}
-          >
-            <Ionicons name="person-outline" size={36} color="#FFFFFF" />
-          </LinearGradient>
-        </View>
-        <Text style={styles.nombre}>Username</Text>
-        <Text style={styles.correo}>username@email.com</Text>
+        {cargando ? (
+          <ActivityIndicator size="large" color={colores.azul} style={{ marginTop: 60 }} />
+        ) : (
+          <>
+            {/* Avatar */}
+            <View style={styles.avatarAnillo}>
+              <LinearGradient
+                colors={['#3A5BA9', '#E8793A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatar}
+              >
+                <Ionicons name="person-outline" size={36} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.nombre}>
+              {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
+            </Text>
+            <Text style={styles.correo}>
+              {usuario ? usuario.email : 'correo@ejemplo.com'}
+            </Text>
 
-        {/* Estadísticas */}
-        <View style={styles.statsFila}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumero}>6</Text>
-            <Text style={styles.statTexto}>Listas</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumero}>10</Text>
-            <Text style={styles.statTexto}>Canciones</Text>
-          </View>
-        </View>
+            {/* Estadísticas */}
+            <View style={styles.statsFila}>
+              <View style={styles.stat}>
+                <Text style={styles.statNumero}>{estadisticas.listas}</Text>
+                <Text style={styles.statTexto}>Listas</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumero}>{estadisticas.canciones}</Text>
+                <Text style={styles.statTexto}>Canciones</Text>
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Modo músico */}
         <View style={styles.modoFila}>
