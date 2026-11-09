@@ -1,8 +1,8 @@
-// src/app/inicio.tsx
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Badge from '../components/Badge';
 import FilaItem from '../components/FilaItem';
 import GradientBox from '../components/GradientBox';
@@ -10,24 +10,68 @@ import Pantalla from '../components/Pantalla';
 import { Tema } from '../constants/theme';
 import { useTema } from '../context/TemaContext';
 
-const LISTAS = [
-  { id: 1, colores: ['#24509E', '#C4571A'] },
-  { id: 2, colores: ['#142C57', '#F0752A'] },
-  { id: 3, colores: ['#E4ECFB', '#FCE6D6'] },
-];
-
-const CANCIONES = [ //canciones de prueba
-  { id: 1, titulo: 'Believer', detalle: '96 BPM · voz + guitarra', tono: 'G', colores: ['#24509E', '#C4571A'] },
-  { id: 2, titulo: 'Moonlight Sonata 3rd', detalle: '72 BPM · piano', tono: 'Dm', colores: ['#142C57', '#F0752A'] },
-  { id: 3, titulo: 'Winter', detalle: '110 BPM · trío', tono: 'Am', colores: ['#5A7FB8', '#FCE6D6'] },
-  { id: 4, titulo: 'Canción de cuna', detalle: '64 BPM · voz sola', tono: 'C', colores: ['#24509E', '#C4571A'] },
-];
-
 export default function Inicio() {
   const router = useRouter();
   const { colores } = useTema();
   const styles = useMemo(() => crearEstilos(colores), [colores]);
+  
   const [busqueda, setBusqueda] = useState('');
+  const [canciones, setCanciones] = useState<any[]>([]);
+  const [listas, setListas] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  useEffect(() => {
+    const obtenerDatos = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          router.replace('/');
+          return;
+        }
+
+        const opcionesFetch = {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        const [resCanciones, resListas] = await Promise.all([
+          fetch(`${API_URL}/canciones`, opcionesFetch),
+          fetch(`${API_URL}/listas`, opcionesFetch)
+        ]);
+
+        if (!resCanciones.ok || !resListas.ok) {
+          if (resCanciones.status === 401 || resListas.status === 401) router.replace('/');
+          return;
+        }
+
+        const dataCanciones = await resCanciones.json();
+        const dataListas = await resListas.json();
+
+        setCanciones(dataCanciones);
+        setListas(dataListas);
+      } catch (error) {
+        console.error('Error al obtener los datos:', error);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    obtenerDatos();
+  }, []);
+
+  const obtenerTonoPrincipal = (tonalidades: string | string[]) => {
+    try {
+      const tonos = typeof tonalidades === 'string' ? JSON.parse(tonalidades) : tonalidades;
+      return tonos && tonos.length > 0 ? tonos[0] : '-';
+    } catch (e) {
+      return '-';
+    }
+  };
 
   return (
     <Pantalla titulo="Inicio" activo={0}>
@@ -49,30 +93,50 @@ export default function Inicio() {
         </Pressable>
       </View>
       <View style={styles.listasFila}>
-        {LISTAS.map((lista) => (
-          <Pressable
-            key={lista.id}
-            style={{ flex: 1 }}
-            onPress={() => router.replace('/mis-listas')}
-          >
-            <GradientBox colores={lista.colores} style={styles.listaCard}>
-              <Ionicons name="musical-notes-outline" size={16} color="#FFFFFF" />
-            </GradientBox>
-          </Pressable>
-        ))}
+        {cargando ? (
+          <ActivityIndicator size="small" color={colores.azul} style={{ marginTop: 10 }} />
+        ) : listas.length === 0 ? (
+          <Text style={{ color: colores.textoGris, fontSize: 13, marginTop: 10 }}>
+            No tienes listas creadas.
+          </Text>
+        ) : (
+          listas.map((lista) => (
+            <Pressable
+              key={lista.id_lista}
+              style={{ flex: 1 }}
+              onPress={() => router.replace('/mis-listas')}
+            >
+              <GradientBox colores={['#24509E', '#C4571A']} style={styles.listaCard}>
+                <Text style={{ color: '#FFF', fontWeight: 'bold', marginBottom: 4, fontSize: 12 }}>
+                  {lista.nombre}
+                </Text>
+                <Ionicons name="musical-notes-outline" size={16} color="#FFFFFF" />
+              </GradientBox>
+            </Pressable>
+          ))
+        )}
       </View>
 
       <Text style={[styles.seccion, { marginTop: 24, marginBottom: 8 }]}>Canciones recientes</Text>
-      {CANCIONES.map((c) => (
-        <FilaItem
-          key={c.id}
-          izquierda={<GradientBox colores={c.colores} style={styles.cancionImg} />}
-          titulo={c.titulo}
-          detalle={c.detalle}
-          derecha={<Badge texto={c.tono} />}
-          onPress={() => router.replace('/mis-canciones')}
-        />
-      ))}
+      
+      {cargando ? (
+        <ActivityIndicator size="large" color={colores.azul} style={{ marginTop: 20 }} />
+      ) : canciones.length === 0 ? (
+        <Text style={{ color: colores.textoGris, textAlign: 'center', marginTop: 20 }}>
+          No tienes canciones registradas.
+        </Text>
+      ) : (
+        canciones.map((c) => (
+          <FilaItem
+            key={c.id_cancion}
+            izquierda={<GradientBox colores={['#24509E', '#C4571A']} style={styles.cancionImg} />}
+            titulo={c.nombre}
+            detalle={`${c.tempo ? c.tempo + ' BPM' : 'Sin tempo registrado'}`}
+            derecha={<Badge texto={obtenerTonoPrincipal(c.tonalidades)} />}
+            onPress={() => router.replace('/mis-canciones')}
+          />
+        ))
+      )}
     </Pantalla>
   );
 }

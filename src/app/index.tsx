@@ -7,6 +7,7 @@ import Fondo from '../components/Fondo';
 import GradientButton from '../components/GradientButton';
 import { Tema } from '../constants/theme';
 import { useTema } from '../context/TemaContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Login() {
   const router = useRouter();
@@ -15,13 +16,50 @@ export default function Login() {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
 
-  const iniciarSesion = () => {
-    if (!correo || !contrasena) {
-      Alert.alert('Faltan datos', 'Escribe tu correo y contraseña.');
+  const iniciarSesion = async () => {
+  if (!correo || !contrasena) {
+    Alert.alert('Faltan datos', 'Escribe tu correo y contraseña.');
+    return;
+  }
+
+  //cambiar ip por la de la comnputadora donde se ejecuta el backend
+  //const API_URL = 'http://192.168.1.XX:3000'; 
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: correo,
+        password: contrasena,
+      }),
+    });
+
+    const data = await response.json();
+
+    // Si las credenciales son incorrectas, mostramos el error del backend
+    if (!response.ok) {
+      Alert.alert('Error de inicio de sesión', data.error || 'Ocurrió un problema');
       return;
     }
+
+    // Si fue exitoso, guardamos el token localmente en el dispositivo
+    await AsyncStorage.setItem('userToken', data.token);
+
+    // Finalmente, navegamos a la pantalla principal
     router.replace('/inicio');
-  };
+
+  } catch (error) {
+    console.error(error);
+    Alert.alert(
+      'Error de conexión', 
+      'No se pudo conectar al servidor. Verifica que XAMPP y Node estén corriendo, y que la IP sea correcta.'
+    );
+  }
+};
 
   return (
     <View style={{ flex: 1 }}>
