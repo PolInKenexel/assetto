@@ -29,9 +29,10 @@ const TOKEN_EXPIRATION = "15m";
 const TOKEN_EXPIRATION_SECONDS = 15 * 60;
 
 const corsOptions = {
+    // Para dejar a la web conectarse, si llega a existir la version web
     origin:
         process.env.CLIENT_ORIGIN ||
-        "http://127.0.0.1:5173",
+        "http://localhost:8081",
     methods: ["GET", "POST"]
 };
 

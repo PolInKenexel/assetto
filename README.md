@@ -36,26 +36,32 @@ Ya pueden ignorar esta parte, solo la necesitamos para visualizar algunas cosas,
 ├─ 📁.expo <br>
 ├─ 📁.vscode <br>
 ├─ 📁assets <br>
+│  │ <br>
+│	├─ 📁backgrounds <br>
+│	└─ logo.png <br>
 ├─ 📁node_modules <br>
 ├─ 📁scripts <br>
+│  │ <br>
+│  └─ reset-project.js <br>
 ├─ 📁server <br>
-│  │ <br>
-│  ├─ 📁node_modules <br>
-│  ├─ .env <br>
-│  ├─ app.js <br>
-│  ├─ database.js <br>
-│  ├─ package.json <br>
-│  ├─ package-lock.json <br>
-│  ├─ schema.sql <br>
-│  └─ yarn.lock <br>
+│	│ <br>
+│	├─ 📁node_modules <br>
+│	├─ .env <br>
+│	├─ app.js <br>
+│	├─ database.js <br>
+│	├─ package.json <br>
+│	├─ package-lock.json <br>
+│	├─ schema.sql <br>
+│	└─ yarn.lock <br>
 ├─ 📁src <br>
-│  │ <br>
-│  ├─ 📁app <br>
-│  ├─ 📁components <br>
-│  ├─ 📁constants <br>
-│  ├─ 📁context <br>
-│  ├─ 📁hooks <br>
-│  └─ global.css <br>
+│	│ <br>
+│	├─ 📁app <br>
+│	├─ 📁components <br>
+│	├─ 📁constants <br>
+│	├─ 📁context <br>
+│	├─ 📁hooks <br>
+│	└─ global.css <br>
+├─ .env <br>
 ├─ .gitignore <br>
 ├─ AGENTS.md <br>
 ├─ app.json <br>
@@ -66,4 +72,4 @@ Ya pueden ignorar esta parte, solo la necesitamos para visualizar algunas cosas,
 ├─ package-lock.json <br>
 ├─ README.md <br>
 ├─ svg.d.ts <br>
-└─ tsconfig.json <br>
+└─ tsconfig.json
