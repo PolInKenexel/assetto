@@ -168,14 +168,20 @@ export async function getCancionByID(id) {
     return rows[0];
 }
 
-    // Obtener todas las canciones de un usuario
+// Obtener todas las canciones de un usuario
 export async function getCancionesByUsuarioID(id) {
     const [rows] = await pool.query(
-        `SELECT *
-         FROM canciones
-         WHERE id_usuario = ?
-           AND fecha_eliminacion IS NULL
-         ORDER BY nombre ASC`,
+        `SELECT c.*, 
+            (
+                SELECT GROUP_CONCAT(cat.nombre SEPARATOR '||')
+                FROM canciones_categorias cc
+                INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
+                WHERE cc.id_cancion = c.id_cancion
+            ) AS categorias_texto
+         FROM canciones c
+         WHERE c.id_usuario = ?
+           AND c.fecha_eliminacion IS NULL
+         ORDER BY c.nombre ASC`,
         [id]
     );
 
@@ -802,4 +808,17 @@ export async function deleteUsuario(id) {
 // Cerrar el pool cuando la aplicacion termine.
 export async function closeDatabase() {
     await pool.end();
+}
+
+export async function getCancionesDeLista(idLista) {
+    const query = `
+        SELECT c.*, lc.posicion, lc.grupo 
+        FROM canciones c
+        INNER JOIN listas_canciones lc ON c.id_cancion = lc.id_cancion
+        WHERE lc.id_lista = ?
+        ORDER BY lc.posicion ASC
+    `;
+    
+    const [rows] = await pool.query(query, [idLista]);
+    return rows;
 }

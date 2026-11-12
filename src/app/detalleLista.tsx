@@ -99,15 +99,23 @@ export default function DetalleLista() {
         
         if (listaEncontrada) {
             setLista(listaEncontrada);
+            
+            // FÍJATE AQUÍ: Le pasamos 'opcionesFetch' como segundo parámetro
+            const resCanciones = await fetch(`${API_URL}/listas/${idLista}/canciones`, opcionesFetch);
+            
+            if (resCanciones.ok) {
+                const dataCanciones = await resCanciones.json();
+                setCanciones(dataCanciones);
+            } else {
+                console.error("Error del servidor al traer canciones:", resCanciones.status);
+                setCanciones([]);
+            }
+            
         } else {
             Alert.alert("Error", "La lista no existe o fue eliminada.");
             router.back();
             return;
         }
-        
-        // Simulación: Como no hay endpoint de canciones por lista, mostraremos un arreglo vacío
-        // hasta que implementes la ruta GET /listas/:id/canciones en el backend.
-        setCanciones([]);
 
       } catch (error) {
         console.error('Error al obtener detalle de lista:', error);

@@ -1,24 +1,30 @@
+// src/app/inicio.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, TouchableOpacity } from 'react-native';
 import Badge from '../components/Badge';
 import FilaItem from '../components/FilaItem';
 import GradientBox from '../components/GradientBox';
 import Pantalla from '../components/Pantalla';
 import { Tema } from '../constants/theme';
 import { useTema } from '../context/TemaContext';
+import ModalResumen from '../components/ModalResumen';
 
 export default function Inicio() {
   const router = useRouter();
   const { colores } = useTema();
   const styles = useMemo(() => crearEstilos(colores), [colores]);
-  
+
   const [busqueda, setBusqueda] = useState('');
   const [canciones, setCanciones] = useState<any[]>([]);
   const [listas, setListas] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
+  
+  // Estados para el modal flotante
+  const [cancionSeleccionada, setCancionSeleccionada] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -118,7 +124,7 @@ export default function Inicio() {
       </View>
 
       <Text style={[styles.seccion, { marginTop: 24, marginBottom: 8 }]}>Canciones recientes</Text>
-      
+
       {cargando ? (
         <ActivityIndicator size="large" color={colores.azul} style={{ marginTop: 20 }} />
       ) : canciones.length === 0 ? (
@@ -127,16 +133,34 @@ export default function Inicio() {
         </Text>
       ) : (
         canciones.map((c) => (
-          <FilaItem
+          <TouchableOpacity
             key={c.id_cancion}
-            izquierda={<GradientBox colores={['#24509E', '#C4571A']} style={styles.cancionImg} />}
-            titulo={c.nombre}
-            detalle={`${c.tempo ? c.tempo + ' BPM' : 'Sin tempo registrado'}`}
-            derecha={<Badge texto={obtenerTonoPrincipal(c.tonalidades)} />}
-            onPress={() => router.replace('/mis-canciones')}
-          />
+            activeOpacity={0.7}
+            onLongPress={() => {
+              setCancionSeleccionada(c);
+              setModalVisible(true);
+            }}
+          >
+            {/* Si FilaItem intercepta los toques normales, le pasamos también el onPress normal ahí */}
+            <View pointerEvents="none">
+              <FilaItem
+                izquierda={<GradientBox colores={['#24509E', '#C4571A']} style={styles.cancionImg} />}
+                titulo={c.nombre}
+                detalle={`${c.tempo ? c.tempo + ' BPM' : 'Sin tempo registrado'}`}
+                derecha={<Badge texto={obtenerTonoPrincipal(c.tonalidades)} />}
+                onPress={() => {}} // Lo anulamos porque el TouchableOpacity padre lo maneja
+              />
+            </View>
+          </TouchableOpacity>
         ))
       )}
+
+      {/* Renderizamos el modal al final */}
+      <ModalResumen 
+        visible={modalVisible} 
+        cancion={cancionSeleccionada} 
+        onClose={() => setModalVisible(false)} 
+      />
     </Pantalla>
   );
 }

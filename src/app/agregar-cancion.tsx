@@ -1,7 +1,7 @@
 // src/app/agregar-cancion.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -124,11 +124,20 @@ function FormManual({ onGuardar, guardando }: { onGuardar: (cancion: CancionNuev
       return;
     }
     
+    // Procesamos las categorías para separar IDs reales de las nuevas (que son Date.now())
+    const categoriasProcesadas = categoriasElegidas.map(id => {
+      if (id > 1000000000000) { // Si es un ID gigante de Date.now()
+        const cat = categorias.find(c => c.id_categoria === id);
+        return cat ? cat.nombre : id; // Enviamos el texto ("Tango", "Salsa")
+      }
+      return id; // Si es un ID real (1, 2, 3), lo dejamos igual
+    });
+
     onGuardar({
       nombre: nombre.trim(),
       tonalidades,
       tempo: tempo.trim() === '' ? null : Number(tempo),
-      categorias: categoriasElegidas,
+      categorias: categoriasProcesadas as any, // Enviamos mezcla de números y textos
       instrumentos: instrumentosElegidos,
     });
   };
@@ -241,44 +250,13 @@ function FormManual({ onGuardar, guardando }: { onGuardar: (cancion: CancionNuev
   );
 }
 
-/* ---------- Modo IMPORTAR ---------- */
-/* No modifiqué FormImportar para no exceder el tamaño, mantén tu código original aquí */
 
+/* ---------- Modo IMPORTAR (Bloqueado) ---------- */
 
-/* ---------- Pantalla Principal ---------- */
-const MODOS = ['Manual', 'Importar'] as const;
-type Modo = (typeof MODOS)[number];
-/* ---------- Modo IMPORTAR ---------- */
-
-type Fuente = 'YouTube' | 'Spotify';
-
-type CancionEncontrada = {
-  id: string;
-  nombre: string;
-  tonalidades: string;
-  tempo: string;
-};
-
-// 👇 Este es el tipo que te estaba marcando error
-type CancionImportada = {
-  nombre: string;
-  tonalidades: string[];
-  tempo: number | null;
-};
-
-const CANCIONES_PLAYLIST_DEMO = [
-  { id: '1', nombre: 'Vals en Sol mayor' },
-  { id: '2', nombre: 'Balada nocturna' },
-  { id: '3', nombre: 'Bossa de otoño' },
-  { id: '4', nombre: 'Canción de cuna' },
-  { id: '5', nombre: 'Interludio en Re' },
-];
-
-function TarjetaFuente({ nombre, icono, activa, onPress }: { nombre: string; icono: 'play-circle-outline' | 'radio-outline'; activa: boolean; onPress: () => void }) {
+function TarjetaFuente({ nombre, icono, activa }: { nombre: string; icono: 'play-circle-outline' | 'radio-outline'; activa: boolean; }) {
   const c = useColores();
   return (
-    <TouchableOpacity
-      onPress={onPress}
+    <View
       style={{
         flex: 1,
         alignItems: 'center',
@@ -299,159 +277,54 @@ function TarjetaFuente({ nombre, icono, activa, onPress }: { nombre: string; ico
         <Ionicons name={icono} size={17} color="#FFFFFF" />
       </LinearGradient>
       <Text style={{ fontFamily: fuentes.extra, fontSize: 12, color: c.texto }}>{nombre}</Text>
+    </View>
+  );
+}
+
+function FormImportarDummy() {
+  const c = useColores();
+
+  const advertenciaBloqueo = () => {
+    Alert.alert('Próximamente', 'La opción de importar desde playlists aún no está disponible.');
+  };
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={advertenciaBloqueo} style={{ opacity: 0.45, marginTop: 5 }}>
+      {/* El pointerEvents="none" evita que se puedan tocar los inputs/botones internos, 
+          haciendo que el TouchableOpacity padre atrape todo el click */}
+      <View pointerEvents="none">
+        
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+          <TarjetaFuente nombre="YouTube" icono="play-circle-outline" activa={true} />
+          <TarjetaFuente nombre="Spotify" icono="radio-outline" activa={false} />
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <Campo
+              etiqueta="Link de la playlist"
+              value=""
+              onChangeText={() => {}}
+              placeholder="youtube.com/playlist?list=…"
+            />
+          </View>
+          <View
+            style={{ marginTop: 21, backgroundColor: c.azul, paddingHorizontal: 16, height: 46, borderRadius: 12, justifyContent: 'center' }}
+          >
+            <Text style={{ fontFamily: fuentes.extra, fontSize: 12.5, color: '#FFFFFF' }}>Buscar</Text>
+          </View>
+        </View>
+
+      </View>
     </TouchableOpacity>
   );
 }
 
-function MiniCampo({ etiqueta, value, onChangeText, teclado, maxLength, ancho }: { etiqueta: string; value: string; onChangeText: (t: string) => void; teclado?: 'numeric'; maxLength?: number; ancho: number }) {
-  const c = useColores();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-      <Text style={{ fontFamily: fuentes.negrita, fontSize: 10.5, color: c.textoSuave }}>{etiqueta}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType={teclado}
-        maxLength={maxLength}
-        placeholder="—"
-        placeholderTextColor={c.textoTenue}
-        style={{
-          width: ancho,
-          fontFamily: fuentes.negrita,
-          fontSize: 11.5,
-          color: c.azul,
-          backgroundColor: c.superficie2,
-          borderWidth: 1,
-          borderColor: c.linea,
-          borderRadius: 7,
-          paddingHorizontal: 6,
-          paddingVertical: 3,
-          textAlign: 'center',
-        }}
-      />
-    </View>
-  );
-}
 
-function FormImportar({ onAgregar }: { onAgregar: (canciones: CancionImportada[]) => void }) {
-  const c = useColores();
-  const [fuente, setFuente] = useState<Fuente>('YouTube');
-  const [link, setLink] = useState('');
-  const [encontradas, setEncontradas] = useState<CancionEncontrada[]>([]);
-  const [elegidas, setElegidas] = useState<string[]>([]);
+/* ---------- Pantalla Principal ---------- */
 
-  const buscar = () => {
-    setEncontradas(CANCIONES_PLAYLIST_DEMO.map((x) => ({ ...x, tonalidades: '', tempo: '' })));
-    setElegidas(CANCIONES_PLAYLIST_DEMO.map((x) => x.id));
-  };
-
-  const alternar = (id: string) => {
-    if (elegidas.includes(id)) {
-      setElegidas(elegidas.filter((x) => x !== id));
-    } else {
-      setElegidas([...elegidas, id]);
-    }
-  };
-
-  const actualizar = (id: string, campo: 'tonalidades' | 'tempo', valor: string) => {
-    setEncontradas(encontradas.map((x) => (x.id === id ? { ...x, [campo]: valor } : x)));
-  };
-
-  const agregar = () => {
-    const seleccionadas = encontradas.filter((x) => elegidas.includes(x.id));
-    for (const cancion of seleccionadas) {
-      if (!tempoValido(cancion.tempo)) {
-        Alert.alert('Tempo no válido', `Revisa el BPM de "${cancion.nombre}".`);
-        return;
-      }
-    }
-    onAgregar(
-      seleccionadas.map((x) => {
-        const lista = x.tonalidades.split(',').map((t) => t.trim()).filter((t) => t !== '');
-        return {
-          nombre: x.nombre,
-          tonalidades: lista.length === 0 ? ['N/D'] : lista,
-          tempo: x.tempo.trim() === '' ? null : Number(x.tempo),
-        };
-      })
-    );
-  };
-
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
-        <TarjetaFuente nombre="YouTube" icono="play-circle-outline" activa={fuente === 'YouTube'} onPress={() => setFuente('YouTube')} />
-        <TarjetaFuente nombre="Spotify" icono="radio-outline" activa={fuente === 'Spotify'} onPress={() => setFuente('Spotify')} />
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-        <View style={{ flex: 1 }}>
-          <Campo
-            etiqueta="Link de la playlist"
-            value={link}
-            onChangeText={setLink}
-            placeholder={fuente === 'YouTube' ? 'youtube.com/playlist?list=…' : 'open.spotify.com/playlist/…'}
-          />
-        </View>
-        <TouchableOpacity
-          onPress={buscar}
-          style={{ marginTop: 21, backgroundColor: c.azul, paddingHorizontal: 16, height: 46, borderRadius: 12, justifyContent: 'center' }}
-        >
-          <Text style={{ fontFamily: fuentes.extra, fontSize: 12.5, color: '#FFFFFF' }}>Buscar</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={{ fontFamily: fuentes.normal, fontSize: 11, color: c.textoTenue, marginBottom: 18, marginLeft: 3 }}>
-        La playlist solo trae el nombre. Completa tonalidades (separadas por coma) y BPM aquí o después en Mis canciones. Si dejas las tonalidades vacías se guarda N/D.
-      </Text>
-
-      {encontradas.length > 0 && (
-        <View>
-          <SeccionTitulo texto={`Canciones encontradas (${encontradas.length})`} />
-          {encontradas.map((cancion) => {
-            const marcada = elegidas.includes(cancion.id);
-            return (
-              <View
-                key={cancion.id}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.linea }}
-              >
-                <TouchableOpacity onPress={() => alternar(cancion.id)}>
-                  {marcada ? (
-                    <LinearGradient
-                      colors={[c.azul, c.naranja]}
-                      style={{ width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-                    </LinearGradient>
-                  ) : (
-                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: c.linea }} />
-                  )}
-                </TouchableOpacity>
-
-                <View style={{ flex: 1 }}>
-                  <Text numberOfLines={1} style={{ fontFamily: fuentes.negrita, fontSize: 13.5, color: c.texto }}>
-                    {cancion.nombre}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
-                    <MiniCampo etiqueta="Tonalidades" value={cancion.tonalidades} onChangeText={(v) => actualizar(cancion.id, 'tonalidades', v)} ancho={70} />
-                    <MiniCampo etiqueta="BPM" value={cancion.tempo} onChangeText={(v) => actualizar(cancion.id, 'tempo', v)} teclado="numeric" maxLength={5} ancho={46} />
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-
-          <View style={{ marginTop: 14 }}>
-            <BotonPrimario
-              texto={`Agregar seleccionadas (${elegidas.length})`}
-              onPress={agregar}
-              deshabilitado={elegidas.length === 0}
-            />
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
+const MODOS = ['Manual', 'Importar'] as const;
+type Modo = (typeof MODOS)[number];
 
 export default function AgregarCancion() {
   const router = useRouter();
@@ -475,7 +348,7 @@ export default function AgregarCancion() {
           tonalidades: cancion.tonalidades,
           tempo: cancion.tempo,
           categorias: cancion.categorias,
-          instrumentos: cancion.instrumentos // El backend lo ignorará temporalmente por falta de tabla
+          instrumentos: cancion.instrumentos 
         })
       });
 
@@ -493,12 +366,6 @@ export default function AgregarCancion() {
     }
   };
 
-  // Por ahora dejamos el stub de Importar que ya tenías
-  const agregarImportadas = (canciones: CancionImportada[]) => {
-    console.log(canciones);
-    router.back();
-  };
-
   return (
     <PantallaForm>
       <Encabezado titulo="Agregar canción" onBack={() => router.back()} />
@@ -507,8 +374,7 @@ export default function AgregarCancion() {
       {modo === 'Manual' ? (
         <FormManual onGuardar={guardarManual} guardando={guardando} />
       ) : (
-        // Reemplaza esto con tu componente FormImportar original
-        <Text>Modo Importar Próximamente</Text> 
+        <FormImportarDummy />
       )}
     </PantallaForm>
   );
