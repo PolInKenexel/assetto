@@ -549,10 +549,6 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
                 }
             }
         }
-        
-        // *Nota*: Actualmente database.js no tiene una tabla para instrumentos[cite: 5, 6].
-        // Por ahora, recibiremos el arreglo 'instrumentos', pero no lo guardaremos
-        // hasta que agregues esa tabla a tu base de datos en el futuro.
 
         return res.status(201).json(nuevaCancion);
     } catch (error) {
@@ -597,7 +593,7 @@ app.use((error, req, res, next) => {
 
 /*--- INICIAR SERVIDOR ---*/
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(
         `Servidor de Assetto escuchando en el puerto ${PORT}`
     );

@@ -36,6 +36,8 @@ yarn-error.*
 # Variables de entorno y secretos (para server)
 server/.env
 server/.env.*
+.env
+.env.*
 
 # typescript
 *.tsbuildinfo
