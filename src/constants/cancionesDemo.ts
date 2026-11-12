@@ -1,10 +1,10 @@
-// Datos de ejemplo.
+// src/constants/cancionesDemo.ts
 
 export type Cancion = {
   id_cancion: number;
   nombre: string;
-  tonalidades: string[]; // una canción puede tener varias
-  tempo: number | null; // BPM, opcional
+  tonalidades: string[] | string; // Permitimos string para compatibilidad con crear-lista
+  tempo: number | null; 
   categorias: string[];
   instrumentos: string[];
 };
@@ -27,6 +27,8 @@ export const FILTROS_VACIOS: Filtros = {
   bpmMax: '',
 };
 
+// Dejamos las canciones demo por si alguna otra pantalla vieja las usa,
+// pero ya no dependeremos de ellas para los filtros.
 export const CANCIONES_DEMO: Cancion[] = [
   { id_cancion: 1, nombre: 'Vals en Sol mayor', tonalidades: ['G', 'Em'], tempo: 96, categorias: ['Vals'], instrumentos: ['Guitarra', 'Voz'] },
   { id_cancion: 2, nombre: 'Balada nocturna', tonalidades: ['Dm'], tempo: 72, categorias: ['Balada'], instrumentos: ['Piano'] },
@@ -37,22 +39,42 @@ export const CANCIONES_DEMO: Cancion[] = [
   { id_cancion: 7, nombre: 'Canción de cuna', tonalidades: ['C'], tempo: null, categorias: ['Infantil'], instrumentos: ['Voz'] },
 ];
 
-const unicos = (lista: string[]): string[] => [...new Set(lista)];
 
-// Opciones de los filtros
-export const CATEGORIAS = unicos(CANCIONES_DEMO.flatMap((x) => x.categorias));
-export const INSTRUMENTOS = unicos(CANCIONES_DEMO.flatMap((x) => x.instrumentos));
-export const TONALIDADES = unicos(CANCIONES_DEMO.flatMap((x) => x.tonalidades));
+// --- OPCIONES PREDETERMINADAS PARA LOS FILTROS --- //
+
+export const CATEGORIAS = [
+  'Rock Clásico', 'Acústico', 'Jazz Fusion', 'Pop Latino', 'Práctica Diaria',
+  'Rock', 'Pop', 'Balada', 'Vals', 'Bossa', 'Infantil', 'Cumbia', 'Norteño'
+];
+
+export const INSTRUMENTOS = [
+  'Guitarra', 'Guitarra Eléctrica', 'Piano', 'Teclado', 'Voz', 'Batería', 'Bajo', 'Violín', 'Flauta'
+];
+
+export const TONALIDADES = [
+  // Notación anglosajona (Mayores y menores)
+  'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B',
+  'Cm', 'C#m', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'Bbm', 'Bm',
+  
+  // Notación latina (que también detecté en tus inserts)
+  'DO', 'RE', 'MI', 'FA', 'SOL', 'LA', 'SI', 'DOM', 'LAM', 'FAM', 'REBM', 'SIBM'
+];
 
 export function filtrarCanciones(canciones: Cancion[], f: Filtros): Cancion[] {
   const texto = f.busqueda.trim().toLowerCase();
-  return canciones.filter(
-    (x) =>
+  
+  return canciones.filter((x) => {
+    // Manejo seguro por si tonalidades viene como arreglo o como string unido por comas
+    const tieneTono = f.tonalidad === '' || 
+      (Array.isArray(x.tonalidades) ? x.tonalidades.includes(f.tonalidad) : x.tonalidades.includes(f.tonalidad));
+
+    return (
       (texto === '' || x.nombre.toLowerCase().includes(texto)) &&
       (f.categoria === '' || x.categorias.includes(f.categoria)) &&
       (f.instrumento === '' || x.instrumentos.includes(f.instrumento)) &&
-      (f.tonalidad === '' || x.tonalidades.includes(f.tonalidad)) &&
+      tieneTono &&
       (f.bpmMin === '' || (x.tempo !== null && x.tempo >= Number(f.bpmMin))) &&
       (f.bpmMax === '' || (x.tempo !== null && x.tempo <= Number(f.bpmMax)))
-  );
+    );
+  });
 }

@@ -75,7 +75,11 @@ export default function MisListas() {
               const palette = index % 2 === 0 ? ['#3A5BA9', '#E8793A'] : ['#1F2F55', '#E8A23A'];
 
               return (
-                <Pressable key={lista.id_lista} style={styles.card}>
+                <Pressable 
+                  key={lista.id_lista} 
+                  style={styles.card}
+                  onPress={() => router.push({ pathname: '/detalleLista', params: { id: lista.id_lista } })}
+                >
                   <GradientBox colores={palette} style={styles.cardInterna}>
                     <Text style={styles.cardNombre}>{lista.nombre}</Text>
                     {/* El endpoint actual no devuelve el conteo de canciones, mostramos la fecha o un texto genérico */}

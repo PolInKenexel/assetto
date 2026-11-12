@@ -1,3 +1,4 @@
+//server/app.js
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -29,10 +30,11 @@ const TOKEN_EXPIRATION = "15m";
 const TOKEN_EXPIRATION_SECONDS = 15 * 60;
 
 const corsOptions = {
-    // Para dejar a la web conectarse, si llega a existir la version web
-    origin:
-        process.env.CLIENT_ORIGIN ||
-        "http://localhost:8081",
+    origin: [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://localhost:8081" // Permite al navegador de VS Code
+    ],
     methods: ["GET", "POST"]
 };
 
@@ -408,6 +410,15 @@ app.get("/", (req, res) => {
         mensaje: "API de Assetto funcionando correctamente"
     });
 });
+/*--- CATEGORIAS DEL USUARIO AUTENTICADO ---*/
+app.get("/categorias", autenticarUsuario, async (req, res, next) => {
+    try {
+        const categorias = await db.getCategoriasByUsuarioID(req.user.id_usuario);
+        return res.status(200).json(categorias);
+    } catch (error) {
+        next(error);
+    }
+});
 
 /*--- CANCIONES DEL USUARIO AUTENTICADO ---*/
 
@@ -424,6 +435,8 @@ app.get("/canciones", autenticarUsuario, async (req, res, next) => {
     }
 });
 
+
+
 /*--- LISTAS DEL USUARIO AUTENTICADO ---*/
 
 app.get("/listas", autenticarUsuario, async (req, res, next) => {
@@ -434,6 +447,17 @@ app.get("/listas", autenticarUsuario, async (req, res, next) => {
 
         return res.status(200).json(listas);
 
+    } catch (error) {
+        next(error);
+    }
+});
+// Obtener canciones de una lista específica
+app.get('/listas/:id/canciones', autenticarUsuario, async (req, res, next) => {
+    const idLista = req.params.id;
+    
+    try {
+        const canciones = await db.getCancionesDeLista(idLista);
+        return res.status(200).json(canciones);
     } catch (error) {
         next(error);
     }
@@ -512,11 +536,16 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
         );
 
         // 2. Asociar categorías (si las hay)
+        // 2. Asociar categorías (si las hay)
         if (Array.isArray(categorias) && categorias.length > 0) {
-            for (const idCategoria of categorias) {
-                // Validación de que sean números
-                if (Number.isInteger(idCategoria)) {
-                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, idCategoria);
+            for (const cat of categorias) {
+                if (Number.isInteger(cat)) {
+                    // Es una categoría existente (ID numérico)
+                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, cat);
+                } else if (typeof cat === "string" && cat.trim() !== "") {
+                    // Es una categoría nueva (Texto). La creamos primero en la BD.
+                    const nuevaCat = await db.createCategoria(req.user.id_usuario, cat.trim());
+                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, nuevaCat.id_categoria);
                 }
             }
         }

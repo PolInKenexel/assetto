@@ -16,22 +16,19 @@ import {
   fuentes,
 } from '../components/form';
 import {
-  CATEGORIAS,
   INSTRUMENTOS,
-  TONALIDADES,
   FILTROS_VACIOS,
   filtrarCanciones,
   Filtros,
 } from '../constants/cancionesDemo';
 
-// Ajustamos la interfaz para que coincida con tu BD
 interface CancionBD {
   id_cancion: number;
   nombre: string;
   tempo: number | null;
   tonalidades: string[];
-  categorias: string[];
-  instrumentos: string[];
+  categorias: string[]; 
+  instrumentos: string[]; 
 }
 
 export default function CrearLista() {
@@ -41,6 +38,10 @@ export default function CrearLista() {
   const [cancionesDB, setCancionesDB] = useState<CancionBD[]>([]);
   const [cargando, setCargando] = useState(true);
   
+  // Estados para las listas dinámicas de los filtros
+  const [misCategorias, setMisCategorias] = useState<string[]>([]);
+  const [misTonalidades, setMisTonalidades] = useState<string[]>([]);
+  
   const [nombre, setNombre] = useState('');
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [seleccionadas, setSeleccionadas] = useState<CancionBD[]>([]);
@@ -49,58 +50,92 @@ export default function CrearLista() {
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
   useEffect(() => {
-    const obtenerCanciones = async () => {
+    const obtenerDatos = async () => {
       try {
         const token = await AsyncStorage.getItem('userToken');
-        if (!token) return;
+        if (!token) {
+            router.replace('/');
+            return;
+        }
 
-        const response = await fetch(`${API_URL}/canciones`, {
+        const opcionesFetch = {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
-        });
+        };
 
-        if (!response.ok) return;
+        // Traemos las canciones y las categorías en paralelo
+        const [resCanciones, resCategorias] = await Promise.all([
+          fetch(`${API_URL}/canciones`, opcionesFetch),
+          fetch(`${API_URL}/categorias`, opcionesFetch)
+        ]);
 
-        const data = await response.json();
-        
-        // Mapeo seguro de los datos de la base de datos
-        const cancionesMapeadas = data.map((cancion: any) => {
-          let tonosParseados = [];
-          try {
-            tonosParseados = typeof cancion.tonalidades === 'string' 
-              ? JSON.parse(cancion.tonalidades) 
-              : cancion.tonalidades;
-          } catch (e) {
-            tonosParseados = [];
-          }
+        if (resCategorias.ok) {
+          const dataCategorias = await resCategorias.json();
+          // Extraemos los nombres y los ordenamos alfabéticamente
+          setMisCategorias(dataCategorias.map((cat: any) => cat.nombre).sort());
+        }
 
-          return {
-            ...cancion,
-            tonalidades: tonosParseados,
-            categorias: [], 
-            instrumentos: []
-          };
-        });
+        if (resCanciones.ok) {
+          const dataCanciones = await resCanciones.json();
+          const tonosUnicos = new Set<string>();
+          
+          const cancionesMapeadas = dataCanciones.map((cancion: any) => {
+            // Parsear tonalidades
+            let tonosParseados: string[] = [];
+            try {
+              tonosParseados = typeof cancion.tonalidades === 'string' 
+                ? JSON.parse(cancion.tonalidades) 
+                : (cancion.tonalidades || []);
+            } catch (e) { tonosParseados = []; }
+            
+            // Recolectar todos los tonos existentes para el filtro
+            tonosParseados.forEach(t => tonosUnicos.add(t));
 
-        setCancionesDB(cancionesMapeadas);
+            // Parsear las categorías que enviamos pegadas con "||" desde la base de datos
+            const catParseadas = cancion.categorias_texto 
+                ? cancion.categorias_texto.split('||') 
+                : [];
+
+            return {
+              id_cancion: cancion.id_cancion,
+              nombre: cancion.nombre,
+              tempo: cancion.tempo,
+              tonalidades: tonosParseados,
+              categorias: catParseadas, 
+              instrumentos: [] // Pendiente hasta agregar la tabla
+            };
+          });
+
+          setCancionesDB(cancionesMapeadas);
+          setMisTonalidades(Array.from(tonosUnicos).sort());
+        }
       } catch (error) {
-        console.error('Error al obtener canciones:', error);
+        console.error('Error al obtener datos:', error);
       } finally {
         setCargando(false);
       }
     };
 
-    obtenerCanciones();
+    obtenerDatos();
   }, []);
 
   const cambiar = (campo: keyof Filtros, valor: string) => {
     setFiltros({ ...filtros, [campo]: valor });
   };
 
-  const coinciden = filtrarCanciones(cancionesDB, filtros);
+  const cancionesParaFiltrar = cancionesDB.map(c => ({
+    ...c,
+    tonalidades: c.tonalidades.join(', ')
+  }));
+
+  const coincidenFiltradas = filtrarCanciones(cancionesParaFiltrar as any, filtros);
+  
+  const coinciden = coincidenFiltradas.map(c => 
+    cancionesDB.find(db => db.id_cancion === c.id_cancion)
+  ).filter(Boolean) as CancionBD[];
 
   const posicionDe = (id: number): number => seleccionadas.findIndex((x) => x.id_cancion === id);
 
@@ -145,7 +180,6 @@ export default function CrearLista() {
         },
         body: JSON.stringify({
           nombre: nombre.trim(),
-          // Enviamos el arreglo respetando el orden visual actual
           canciones: seleccionadas.map((cancion) => ({
             id_cancion: cancion.id_cancion,
           })),
@@ -173,9 +207,10 @@ export default function CrearLista() {
 
       <Campo etiqueta="Nombre de la lista *" value={nombre} onChangeText={setNombre} placeholder="Ensayo jueves" maxLength={150} />
 
-      <FilaFiltro titulo="Categoría" opciones={CATEGORIAS} valor={filtros.categoria} onChange={(v) => cambiar('categoria', v)} />
+      {/* Aquí le pasamos las variables dinámicas misCategorias y misTonalidades en vez de las de prueba */}
+      <FilaFiltro titulo="Categoría" opciones={misCategorias} valor={filtros.categoria} onChange={(v) => cambiar('categoria', v)} />
       <FilaFiltro titulo="Instrumento" opciones={INSTRUMENTOS} valor={filtros.instrumento} onChange={(v) => cambiar('instrumento', v)} />
-      <FilaFiltro titulo="Tonalidad" opciones={TONALIDADES} valor={filtros.tonalidad} onChange={(v) => cambiar('tonalidad', v)} />
+      <FilaFiltro titulo="Tonalidad" opciones={misTonalidades} valor={filtros.tonalidad} onChange={(v) => cambiar('tonalidad', v)} />
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
         <View style={{ flex: 1 }}>
