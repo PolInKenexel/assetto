@@ -1,11 +1,11 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "npx nodemon app.js"
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

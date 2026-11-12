@@ -168,7 +168,7 @@ export async function getCancionByID(id) {
     return rows[0];
 }
 
-// Obtener todas las canciones de un usuario
+    // Obtener todas las canciones de un usuario
 export async function getCancionesByUsuarioID(id) {
     const [rows] = await pool.query(
         `SELECT c.*, 
@@ -281,6 +281,20 @@ export async function getCancionesByListaID(idLista) {
 
     return rows;
 }
+
+    // Obtener todas las canciones que pertenecen a una lista ALTERNATIVO
+/*export async function getCancionesDeLista(idLista) {
+    const query = `
+        SELECT c.*, lc.posicion, lc.grupo 
+        FROM canciones c
+        INNER JOIN listas_canciones lc ON c.id_cancion = lc.id_cancion
+        WHERE lc.id_lista = ?
+        ORDER BY lc.posicion ASC
+    `;
+    
+    const [rows] = await pool.query(query, [idLista]);
+    return rows;
+}*/
 
     // Obtener todas las canciones que estan en la papelera de un usuario
 export async function getCancionesEnPapeleraByUsuarioID(idUsuario) {
@@ -805,20 +819,7 @@ export async function deleteUsuario(id) {
     return result.affectedRows > 0;
 }
 
-// Cerrar el pool cuando la aplicacion termine.
+    // Cerrar el pool cuando la aplicacion termine.
 export async function closeDatabase() {
     await pool.end();
-}
-
-export async function getCancionesDeLista(idLista) {
-    const query = `
-        SELECT c.*, lc.posicion, lc.grupo 
-        FROM canciones c
-        INNER JOIN listas_canciones lc ON c.id_cancion = lc.id_cancion
-        WHERE lc.id_lista = ?
-        ORDER BY lc.posicion ASC
-    `;
-    
-    const [rows] = await pool.query(query, [idLista]);
-    return rows;
 }

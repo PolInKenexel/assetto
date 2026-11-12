@@ -1,3 +1,4 @@
+/*--- ---*/
 //server/app.js
 import bcrypt from "bcryptjs";
 import cors from "cors";
@@ -10,8 +11,7 @@ import * as db from "./database.js";
 
 dotenv.config();
 
-/*--- CONFIGURACIÓN ---*/
-
+/*--- CONFIGURACION ---*/
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (
@@ -39,13 +39,13 @@ const corsOptions = {
 };
 
 /*--- MIDDLEWARES GENERALES ---*/
-
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 
-/*--- LIMITAR INTENTOS DE AUTENTICACIÓN ---*/
+    // =========================== AUTENTICACION ===========================
 
+/*--- Limitar intentos para autenticarse ---*/
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
@@ -59,8 +59,7 @@ const authLimiter = rateLimit({
     }
 });
 
-/*--- CREAR TOKEN DE ACCESO ---*/
-
+/*--- Crear token (JSON Web Token) de acceso ---*/
 function crearTokenAcceso(usuario) {
     return jwt.sign(
         {
@@ -76,8 +75,7 @@ function crearTokenAcceso(usuario) {
     );
 }
 
-/*--- RESPUESTA DE AUTENTICACIÓN ---*/
-
+/*--- Alguna respuesta de la autenticacion (por defecto todo bien) ---*/
 function responderAutenticacion(res, usuario, status = 200) {
     const token = crearTokenAcceso(usuario);
 
@@ -89,8 +87,9 @@ function responderAutenticacion(res, usuario, status = 200) {
     });
 }
 
-/*--- REGISTRO ---*/
+    // =========================== CRUD DE USUARIOS ===========================
 
+/*--- REGISTRO ---*/
 app.post("/auth/register", authLimiter, async (req, res, next) => {
     try {
         const {
@@ -185,8 +184,7 @@ app.post("/auth/register", authLimiter, async (req, res, next) => {
     }
 });
 
-/*--- INICIO DE SESIÓN ---*/
-
+/*--- INICIO DE SESION ---*/
 app.post("/auth/login", authLimiter, async (req, res, next) => {
     try {
         const email =
@@ -248,12 +246,8 @@ app.post("/auth/login", authLimiter, async (req, res, next) => {
     }
 });
 
-/*--- RECUPERAR UNA CUENTA ELIMINADA ---*/
-
-app.post(
-    "/auth/restore-account",
-    authLimiter,
-    async (req, res, next) => {
+/*--- recuperar una cuenta eliminada ---*/
+app.post("/auth/restore-account", authLimiter, async (req, res, next) => {
         try {
             const email =
                 typeof req.body?.email === "string"
@@ -321,8 +315,7 @@ app.post(
     }
 );
 
-/*--- MIDDLEWARE DE AUTENTICACIÓN ---*/
-
+/*--- MIDDLEWARE DE AUTENTICACION ---*/
 async function autenticarUsuario(req, res, next) {
     const authorization = req.get("Authorization");
 
@@ -395,21 +388,22 @@ async function autenticarUsuario(req, res, next) {
     }
 }
 
-/*--- CONSULTAR LA SESIÓN ACTUAL ---*/
+    // =========================== GET ===========================
 
+/*--- Ruta de la sesion actual ---*/
 app.get("/auth/me", autenticarUsuario, (req, res) => {
     return res.status(200).json({
         usuario: req.user
     });
 });
 
-/*--- RUTA DE PRUEBA ---*/
-
+/*--- Ruta tan pronto se inicia la API ---*/
 app.get("/", (req, res) => {
     return res.status(200).json({
         mensaje: "API de Assetto funcionando correctamente"
     });
 });
+
 /*--- CATEGORIAS DEL USUARIO AUTENTICADO ---*/
 app.get("/categorias", autenticarUsuario, async (req, res, next) => {
     try {
@@ -421,42 +415,31 @@ app.get("/categorias", autenticarUsuario, async (req, res, next) => {
 });
 
 /*--- CANCIONES DEL USUARIO AUTENTICADO ---*/
-
 app.get("/canciones", autenticarUsuario, async (req, res, next) => {
     try {
-        const canciones = await db.getCancionesByUsuarioID(
-            req.user.id_usuario
-        );
-
+        const canciones = await db.getCancionesByUsuarioID(req.user.id_usuario);
         return res.status(200).json(canciones);
-
     } catch (error) {
         next(error);
     }
 });
-
-
 
 /*--- LISTAS DEL USUARIO AUTENTICADO ---*/
-
 app.get("/listas", autenticarUsuario, async (req, res, next) => {
     try {
-        const listas = await db.getListasByUsuarioID(
-            req.user.id_usuario
-        );
-
+        const listas = await db.getListasByUsuarioID(req.user.id_usuario);
         return res.status(200).json(listas);
-
     } catch (error) {
         next(error);
     }
 });
-// Obtener canciones de una lista específica
+
+/*--- obtener canciones de una lista especifica ---*/
 app.get('/listas/:id/canciones', autenticarUsuario, async (req, res, next) => {
     const idLista = req.params.id;
     
     try {
-        const canciones = await db.getCancionesDeLista(idLista);
+        const canciones = await db.getCancionesByListaID(idLista);
         return res.status(200).json(canciones);
     } catch (error) {
         next(error);
@@ -466,9 +449,7 @@ app.get('/listas/:id/canciones', autenticarUsuario, async (req, res, next) => {
 /*--- CANCIONES EN LA PAPELERA ---*/
 app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
     try {
-        const canciones = await db.getCancionesEnPapeleraByUsuarioID(
-            req.user.id_usuario
-        );
+        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
         return res.status(200).json(canciones);
     } catch (error) {
         next(error);
@@ -478,14 +459,14 @@ app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
 /*--- LISTAS EN LA PAPELERA ---*/
 app.get("/listas/papelera", autenticarUsuario, async (req, res, next) => {
     try {
-        const listas = await db.getListasEnPapeleraByUsuarioID(
-            req.user.id_usuario
-        );
+        const listas = await db.getListasEnPapeleraByUsuarioID(req.user.id_usuario);
         return res.status(200).json(listas);
     } catch (error) {
         next(error);
     }
 });
+
+    // =========================== POST ===========================
 
 /*--- CREAR NUEVA LISTA ---*/
 app.post("/listas", autenticarUsuario, async (req, res, next) => {
@@ -496,10 +477,10 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
             return res.status(400).json({ error: "El nombre de la lista es obligatorio." });
         }
 
-        // 1. Creamos la lista vacía
+            // Se crea la lista vacia
         const nuevaLista = await db.createLista(req.user.id_usuario, nombre.trim());
 
-        // 2. Si el usuario seleccionó canciones, las agregamos en el orden recibido
+            // Si el usuario selecciono canciones, las agregamos en el orden recibido
         if (Array.isArray(canciones) && canciones.length > 0) {
             for (const cancion of canciones) {
                 if (cancion.id_cancion) {
@@ -514,7 +495,7 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- CREAR NUEVA CANCIÓN ---*/
+/*--- CREAR NUEVA CANCION ---*/
 app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     try {
         const { nombre, tempo, tonalidades, categorias, instrumentos } = req.body;
@@ -527,7 +508,7 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
             return res.status(400).json({ error: "Debes proporcionar al menos una tonalidad." });
         }
 
-        // 1. Guardar la canción base
+            // Guardar la canciOn base
         const nuevaCancion = await db.createCancion(
             req.user.id_usuario, 
             nombre.trim(), 
@@ -535,15 +516,14 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
             tonalidades
         );
 
-        // 2. Asociar categorías (si las hay)
-        // 2. Asociar categorías (si las hay)
+            // Asociar categorias (En caso de que se agregue alguna)
         if (Array.isArray(categorias) && categorias.length > 0) {
             for (const cat of categorias) {
                 if (Number.isInteger(cat)) {
-                    // Es una categoría existente (ID numérico)
+                        // Es una categoria que ya existia
                     await db.addCategoriaToCancion(nuevaCancion.id_cancion, cat);
                 } else if (typeof cat === "string" && cat.trim() !== "") {
-                    // Es una categoría nueva (Texto). La creamos primero en la BD.
+                        // Es una categoria que se esta creando... Primero se crea en la BD.
                     const nuevaCat = await db.createCategoria(req.user.id_usuario, cat.trim());
                     await db.addCategoriaToCancion(nuevaCancion.id_cancion, nuevaCat.id_categoria);
                 }
@@ -556,16 +536,16 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- RUTA NO ENCONTRADA ---*/
-
+/*--- Ruta no encontrada, el famoso 404 ---*/
 app.use((req, res) => {
     return res.status(404).json({
         error: "Ruta no encontrada."
     });
 });
 
-/*--- GESTIÓN CENTRALIZADA DE ERRORES ---*/
 
+
+/*--- MANEJO DE ERRORES ---*/
 app.use((error, req, res, next) => {
     if (res.headersSent) {
         return next(error);
@@ -591,16 +571,14 @@ app.use((error, req, res, next) => {
     });
 });
 
-/*--- INICIAR SERVIDOR ---*/
-
+/*--- Aqui inicia el servidor ---*/
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(
         `Servidor de Assetto escuchando en el puerto ${PORT}`
     );
 });
 
-/*--- CERRAR SERVIDOR Y BASE DE DATOS ---*/
-
+/*--- Aqui se hace el cierre del servidor y la Base de Datos ---*/
 let shuttingDown = false;
 
 async function shutdown(signal) {
