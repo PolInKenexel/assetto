@@ -1,20 +1,20 @@
 // src/app/agregar-cancion.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import {
-  PantallaForm,
-  Encabezado,
-  SeccionTitulo,
+  BotonPrimario,
   Campo,
   Chip,
-  BotonPrimario,
+  Encabezado,
+  fuentes,
+  PantallaForm,
+  SeccionTitulo,
   Segmentado,
   useColores,
-  fuentes,
 } from '../components/form';
 
 function tempoValido(texto: string): boolean {
@@ -28,11 +28,11 @@ function tempoValido(texto: string): boolean {
 type Categoria = { id_categoria: number; nombre: string };
 
 const CATEGORIAS_DEMO: Categoria[] = [
-  { id_categoria: 1, nombre: 'Vals' },
-  { id_categoria: 2, nombre: 'Balada' },
-  { id_categoria: 3, nombre: 'Bossa' },
-  { id_categoria: 4, nombre: 'Rock' },
-  { id_categoria: 5, nombre: 'Infantil' },
+  { id_categoria: 1, nombre: 'Rock Clásico' },
+  { id_categoria: 2, nombre: 'Acústico' },
+  { id_categoria: 3, nombre: 'Guitarra Eléctrica' },
+  { id_categoria: 4, nombre: 'Jazz Fusion' },
+  { id_categoria: 5, nombre: 'Práctica Diaria' },
 ];
 
 const INSTRUMENTOS_LISTA = [

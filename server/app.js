@@ -35,7 +35,7 @@ const corsOptions = {
         "http://localhost:5173",
         "http://localhost:8081" // Permite al navegador de VS Code
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
 };
 
 /*--- MIDDLEWARES GENERALES ---*/
@@ -484,7 +484,7 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
         if (Array.isArray(canciones) && canciones.length > 0) {
             for (const cancion of canciones) {
                 if (cancion.id_cancion) {
-                    await db.addCancionToLista(nuevaLista.id_lista, cancion.id_cancion);
+                    await db.addCancionToLista(nuevaLista.id_lista, cancion.id_cancion, req.user.id_usuario);
                 }
             }
         }
@@ -521,11 +521,11 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
             for (const cat of categorias) {
                 if (Number.isInteger(cat)) {
                         // Es una categoria que ya existia
-                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, cat);
+                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, cat, req.user.id_usuario);
                 } else if (typeof cat === "string" && cat.trim() !== "") {
                         // Es una categoria que se esta creando... Primero se crea en la BD.
                     const nuevaCat = await db.createCategoria(req.user.id_usuario, cat.trim());
-                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, nuevaCat.id_categoria);
+                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, nuevaCat.id_categoria, req.user.id_usuario);
                 }
             }
         }
