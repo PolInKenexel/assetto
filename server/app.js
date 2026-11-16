@@ -14,10 +14,7 @@ dotenv.config();
 /*--- CONFIGURACION ---*/
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (
-    !JWT_SECRET ||
-    Buffer.byteLength(JWT_SECRET, "utf8") < 32
-) {
+if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, "utf8") < 32) {
     throw new Error(
         "JWT_SECRET debe existir y tener al menos 32 bytes."
     );
@@ -205,16 +202,9 @@ app.post("/auth/login", authLimiter, async (req, res, next) => {
 
         const usuarioBD = await db.getUsuarioByEmail(email);
 
-        const esPasswordTextoPlano = password === usuarioBD?.password_hash;
-        
-        let esPasswordValido = esPasswordTextoPlano;
-        if (!esPasswordValido && usuarioBD) {
-            try {
-                esPasswordValido = await bcrypt.compare(password, usuarioBD.password_hash);
-            } catch (e) {
-                esPasswordValido = false;
-            }
-        }
+        const esPasswordValido = usuarioBD
+            ? await bcrypt.compare(password, usuarioBD.password_hash)
+            : false;
 
         if (!usuarioBD || !esPasswordValido) {
             return res.status(401).json({
@@ -222,6 +212,7 @@ app.post("/auth/login", authLimiter, async (req, res, next) => {
             });
         }
 
+        // PENDIENTE: Hacer que la cuenta se recupere automaticamente si se inicia sesion otra vez antes de los 14 dias
         if (usuarioBD.fecha_eliminacion) {
             return res.status(403).json({
                 error:
@@ -434,12 +425,122 @@ app.get("/listas", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- obtener canciones de una lista especifica ---*/
-app.get('/listas/:id/canciones', autenticarUsuario, async (req, res, next) => {
-    const idLista = req.params.id;
-    
+/*--- Obtener canciones de una lista específica ---*/
+app.get("/listas/:id/canciones", autenticarUsuario, async (req, res, next) => {
+    const idLista = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idLista) || idLista <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la lista no es válido."
+        });
+    }
+
     try {
+        const lista = await db.getListaByID(idLista);
+
+        if (!lista || Number(lista.id_usuario) !== req.user.id_usuario) 
+        {
+            return res.status(404).json({
+                error: "La lista no existe o no está disponible."
+            });
+        }
+
         const canciones = await db.getCancionesByListaID(idLista);
+
+        return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER UNA CANCION ESPECIFICA ---*/
+app.get("/canciones/:id", autenticarUsuario, async (req, res, next) => {
+    const idCancion = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCancion) || idCancion <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la canción no es válido."
+        });
+    }
+
+    try {
+        const cancion = await db.getCancionByID(idCancion);
+
+        if (
+            !cancion ||
+            Number(cancion.id_usuario) !== req.user.id_usuario
+        ) {
+            return res.status(404).json({
+                error: "La canción no existe o no está disponible."
+            });
+        }
+
+        return res.status(200).json(cancion);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER CATEGORIAS DE UNA CANCION ---*/
+app.get("/canciones/:id/categorias", autenticarUsuario, async (req, res, next) => {
+    const idCancion = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCancion) || idCancion <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la canción no es válido."
+        });
+    }
+
+    try {
+        const cancion = await db.getCancionByID(idCancion);
+
+        if (
+            !cancion ||
+            Number(cancion.id_usuario) !== req.user.id_usuario
+        ) {
+            return res.status(404).json({
+                error: "La canción no existe o no está disponible."
+            });
+        }
+
+        const categorias = await db.getCategoriasByCancionID(idCancion);
+
+        return res.status(200).json(categorias);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER CANCIONES DE UNA CATEGORIA ---*/
+app.get("/categorias/:id/canciones", autenticarUsuario, async (req, res, next) => {
+    const idCategoria = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCategoria) || idCategoria <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la categoría no es válido."
+        });
+    }
+
+    try {
+        const categoriasUsuario = await db.getCategoriasByUsuarioID(
+            req.user.id_usuario
+        );
+
+        const categoriaDisponible = categoriasUsuario.some(
+            categoria => Number(categoria.id_categoria) === idCategoria
+        );
+
+        if (!categoriaDisponible) {
+            return res.status(404).json({
+                error: "La categoría no existe o no está disponible."
+            });
+        }
+
+        const canciones = await db.getCancionesByCategoriaID(
+            idCategoria,
+            req.user.id_usuario
+        );
+
         return res.status(200).json(canciones);
     } catch (error) {
         next(error);
@@ -471,21 +572,51 @@ app.get("/listas/papelera", autenticarUsuario, async (req, res, next) => {
 /*--- CREAR NUEVA LISTA ---*/
 app.post("/listas", autenticarUsuario, async (req, res, next) => {
     try {
-        const { nombre, canciones } = req.body;
+        const { nombre, canciones } = req.body ?? {};
 
-        if (!nombre || typeof nombre !== "string" || nombre.trim().length === 0) {
-            return res.status(400).json({ error: "El nombre de la lista es obligatorio." });
+        if (
+            typeof nombre !== "string" ||
+            nombre.trim().length === 0
+        ) {
+            return res.status(400).json({
+                error: "El nombre de la lista es obligatorio."
+            });
         }
 
-            // Se crea la lista vacia
-        const nuevaLista = await db.createLista(req.user.id_usuario, nombre.trim());
+        if (
+            canciones !== undefined &&
+            (
+                !Array.isArray(canciones) ||
+                !canciones.every(cancion =>
+                    cancion &&
+                    Number.isSafeInteger(Number(cancion.id_cancion)) &&
+                    Number(cancion.id_cancion) > 0
+                )
+            )
+        ) {
+            return res.status(400).json({
+                error: "El formato de las canciones no es válido."
+            });
+        }
 
-            // Si el usuario selecciono canciones, las agregamos en el orden recibido
-        if (Array.isArray(canciones) && canciones.length > 0) {
+        const nuevaLista = await db.createLista(
+            req.user.id_usuario,
+            nombre.trim()
+        );
+
+        if (!nuevaLista) {
+            throw new Error("No se pudo crear la lista.");
+        }
+
+        if (canciones?.length > 0) {
             for (const cancion of canciones) {
-                if (cancion.id_cancion) {
-                    await db.addCancionToLista(nuevaLista.id_lista, cancion.id_cancion, req.user.id_usuario);
-                }
+                await db.addCancionToLista(
+                    nuevaLista.id_lista,
+                    Number(cancion.id_cancion),
+                    req.user.id_usuario,
+                        // Opcionalmente, podría hacerse que las canciones ya vengan organizadas en grupo desde la creacion de la lista
+                    cancion.grupo ?? null
+                );
             }
         }
 
@@ -498,34 +629,153 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
 /*--- CREAR NUEVA CANCION ---*/
 app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     try {
-        const { nombre, tempo, tonalidades, categorias, instrumentos } = req.body;
+        const {
+            nombre,
+            tempo,
+            tonalidades,
+            categorias
+        } = req.body ?? {};
 
-        if (!nombre || typeof nombre !== "string" || nombre.trim().length === 0) {
-            return res.status(400).json({ error: "El nombre de la canción es obligatorio." });
-        }
-        
-        if (!Array.isArray(tonalidades) || tonalidades.length === 0) {
-            return res.status(400).json({ error: "Debes proporcionar al menos una tonalidad." });
+        if (
+            typeof nombre !== "string" ||
+            nombre.trim().length === 0
+        ) {
+            return res.status(400).json({
+                error: "El nombre de la canción es obligatorio."
+            });
         }
 
-            // Guardar la canciOn base
+        if (
+            tempo !== undefined &&
+            tempo !== null &&
+            (
+                typeof tempo !== "number" ||
+                !Number.isFinite(tempo) ||
+                tempo <= 0
+            )
+        ) {
+            return res.status(400).json({
+                error: "El tempo debe ser un número positivo o estar vacío."
+            });
+        }
+
+        if (
+            !Array.isArray(tonalidades) ||
+            tonalidades.length === 0 ||
+            !tonalidades.every(
+                tonalidad =>
+                    typeof tonalidad === "string" &&
+                    tonalidad.trim().length > 0
+            )
+        ) {
+            return res.status(400).json({
+                error: "Debes proporcionar al menos una tonalidad válida."
+            });
+        }
+
+        if (
+            categorias !== undefined &&
+            !Array.isArray(categorias)
+        ) {
+            return res.status(400).json({
+                error: "Las categorías deben enviarse como una lista."
+            });
+        }
+
+        const tiposPermitidos = [
+            "genero",
+            "tematica",
+            "instrumento"
+        ];
+
+        if (categorias) {
+            for (const categoria of categorias) {
+                const esIdValido =
+                    Number.isSafeInteger(categoria) &&
+                    categoria > 0;
+
+                const esNombreValido =
+                    typeof categoria === "string" &&
+                    categoria.trim().length > 0;
+
+                const esObjetoValido =
+                    categoria !== null &&
+                    typeof categoria === "object" &&
+                    (
+                        (
+                            Number.isSafeInteger(categoria.id_categoria) &&
+                            categoria.id_categoria > 0
+                        ) ||
+                        (
+                            typeof categoria.nombre === "string" &&
+                            categoria.nombre.trim().length > 0 &&
+                            tiposPermitidos.includes(
+                                categoria.tipo ?? "genero"
+                            )
+                        )
+                    );
+
+                if (
+                    !esIdValido &&
+                    !esNombreValido &&
+                    !esObjetoValido
+                ) {
+                    return res.status(400).json({
+                        error: "Una o más categorías tienen un formato inválido."
+                    });
+                }
+            }
+        }
+
         const nuevaCancion = await db.createCancion(
-            req.user.id_usuario, 
-            nombre.trim(), 
-            tempo || null, 
-            tonalidades
+            req.user.id_usuario,
+            nombre.trim(),
+            tempo ?? null,
+            tonalidades.map(tonalidad => tonalidad.trim())
         );
 
-            // Asociar categorias (En caso de que se agregue alguna)
-        if (Array.isArray(categorias) && categorias.length > 0) {
-            for (const cat of categorias) {
-                if (Number.isInteger(cat)) {
-                        // Es una categoria que ya existia
-                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, cat, req.user.id_usuario);
-                } else if (typeof cat === "string" && cat.trim() !== "") {
-                        // Es una categoria que se esta creando... Primero se crea en la BD.
-                    const nuevaCat = await db.createCategoria(req.user.id_usuario, cat.trim());
-                    await db.addCategoriaToCancion(nuevaCancion.id_cancion, nuevaCat.id_categoria, req.user.id_usuario);
+        if (!nuevaCancion) {
+            throw new Error("No se pudo crear la canción.");
+        }
+
+        if (categorias?.length > 0) {
+            for (const categoria of categorias) {
+                let idCategoria;
+
+                if (typeof categoria === "number") {
+                    idCategoria = categoria;
+                } else if (typeof categoria === "string") {
+                    const nuevaCategoria = await db.createCategoria(
+                        req.user.id_usuario,
+                        categoria.trim(),
+                        false,
+                        "genero"
+                    );
+
+                    idCategoria = nuevaCategoria.id_categoria;
+                } else if (categoria.id_categoria !== undefined) {
+                    idCategoria = categoria.id_categoria;
+                } else {
+                    const nuevaCategoria = await db.createCategoria(
+                        req.user.id_usuario,
+                        categoria.nombre.trim(),
+                        false,
+                        categoria.tipo ?? "genero"
+                    );
+
+                    idCategoria = nuevaCategoria.id_categoria;
+                }
+
+                const asociada = await db.addCategoriaToCancion(
+                    nuevaCancion.id_cancion,
+                    idCategoria,
+                    req.user.id_usuario
+                );
+
+                if (!asociada) {
+                    throw new Error(
+                        "No se pudo asociar una categoría a la canción."
+                    );
                 }
             }
         }
@@ -536,14 +786,58 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     }
 });
 
+/*--- CREAR NUEVA CATEGORIA ---*/
+app.post("/categorias", autenticarUsuario, async (req, res, next) => {
+    try {
+        const { nombre, tipo = "genero" } = req.body ?? {};
+
+        if (
+            typeof nombre !== "string" ||
+            nombre.trim().length === 0
+        ) {
+            return res.status(400).json({
+                error: "El nombre de la categoría es obligatorio."
+            });
+        }
+
+        const tiposPermitidos = [
+            "genero",
+            "tematica",
+            "instrumento"
+        ];
+
+        if (!tiposPermitidos.includes(tipo)) {
+            return res.status(400).json({
+                error: "El tipo de categoría no es válido."
+            });
+        }
+
+        const nuevaCategoria = await db.createCategoria(
+            req.user.id_usuario,
+            nombre.trim(),
+            false,
+            tipo
+        );
+
+        if (!nuevaCategoria) {
+            throw new Error("No se pudo recuperar la categoría creada.");
+        }
+
+        return res.status(201).json(nuevaCategoria);
+    } catch (error) {
+        next(error);
+    }
+});
+
+
+
+
 /*--- Ruta no encontrada, el famoso 404 ---*/
 app.use((req, res) => {
     return res.status(404).json({
         error: "Ruta no encontrada."
     });
 });
-
-
 
 /*--- MANEJO DE ERRORES ---*/
 app.use((error, req, res, next) => {

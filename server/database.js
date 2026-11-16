@@ -175,7 +175,7 @@ export async function addCancionToLista(
 
 // READ
 
-    // Obtener una sola cancion por su ID
+    // Obtener una sola cancion por su ID (Dejar, de momento...)
 export async function getCancionByID(id) {
     const [rows] = await pool.query(
         `SELECT *
@@ -310,20 +310,6 @@ export async function getCancionesByListaID(idLista) {
 
     return rows;
 }
-
-    // Obtener todas las canciones que pertenecen a una lista ALTERNATIVO
-/*export async function getCancionesDeLista(idLista) {
-    const query = `
-        SELECT c.*, lc.posicion, lc.grupo 
-        FROM canciones c
-        INNER JOIN listas_canciones lc ON c.id_cancion = lc.id_cancion
-        WHERE lc.id_lista = ?
-        ORDER BY lc.posicion ASC
-    `;
-    
-    const [rows] = await pool.query(query, [idLista]);
-    return rows;
-}*/
 
     // Obtener todas las canciones que estan en la papelera de un usuario
 export async function getCancionesEnPapeleraByUsuarioID(idUsuario) {
