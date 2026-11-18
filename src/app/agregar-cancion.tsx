@@ -1,10 +1,12 @@
 // src/app/agregar-cancion.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+
+
 import {
   PantallaForm,
   Encabezado,
@@ -48,8 +50,8 @@ type CancionNueva = {
   nombre: string;
   tonalidades: string[];
   tempo: number | null;
-  categorias: number[];
-  instrumentos: number[];
+  categorias: string[];
+  instrumentos: string[];
 };
 
 function FormManual({ onGuardar, guardando }: { onGuardar: (cancion: CancionNueva) => void, guardando: boolean }) {
@@ -63,6 +65,36 @@ function FormManual({ onGuardar, guardando }: { onGuardar: (cancion: CancionNuev
   const [instrumentosElegidos, setInstrumentosElegidos] = useState<number[]>([]);
   const [creando, setCreando] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState('');
+
+  useEffect(() => {
+    const cargarCategoriasUsuario = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) return;
+        const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/categorias`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setCategorias((prev) => {
+          const mapa = new Map<string, Categoria>();
+          prev.forEach((cat) => mapa.set(cat.nombre.toLowerCase(), cat));
+          data.forEach((cat: any) => {
+            if (cat.tipo !== 'instrumento' && !mapa.has(cat.nombre.toLowerCase())) {
+              mapa.set(cat.nombre.toLowerCase(), {
+                id_categoria: cat.id_categoria,
+                nombre: cat.nombre,
+              });
+            }
+          });
+          return Array.from(mapa.values());
+        });
+      } catch {
+        // Mantenemos las categorías base si falla la red
+      }
+    };
+    cargarCategoriasUsuario();
+  }, []);
 
   const agregarTonalidad = () => {
     const texto = nuevaTonalidad.trim();
@@ -124,21 +156,21 @@ function FormManual({ onGuardar, guardando }: { onGuardar: (cancion: CancionNuev
       return;
     }
     
-    // Procesamos las categorías para separar IDs reales de las nuevas (que son Date.now())
-    const categoriasProcesadas = categoriasElegidas.map(id => {
-      if (id > 1000000000000) { // Si es un ID gigante de Date.now()
-        const cat = categorias.find(c => c.id_categoria === id);
-        return cat ? cat.nombre : id; // Enviamos el texto ("Tango", "Salsa")
-      }
-      return id; // Si es un ID real (1, 2, 3), lo dejamos igual
-    });
+    // Enviamos los nombres de las categorías e instrumentos seleccionados para que el backend los asocie o cree sin conflictos
+    const categoriasProcesadas = categoriasElegidas
+      .map((id) => categorias.find((c) => c.id_categoria === id)?.nombre)
+      .filter((n): n is string => Boolean(n));
+
+    const instrumentosProcesados = instrumentosElegidos
+      .map((id) => INSTRUMENTOS_LISTA.find((i) => i.id_instrumento === id)?.nombre)
+      .filter((n): n is string => Boolean(n));
 
     onGuardar({
       nombre: nombre.trim(),
       tonalidades,
       tempo: tempo.trim() === '' ? null : Number(tempo),
-      categorias: categoriasProcesadas as any, // Enviamos mezcla de números y textos
-      instrumentos: instrumentosElegidos,
+      categorias: categoriasProcesadas,
+      instrumentos: instrumentosProcesados,
     });
   };
 

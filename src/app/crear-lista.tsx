@@ -94,9 +94,12 @@ export default function CrearLista() {
             // Recolectar todos los tonos existentes para el filtro
             tonosParseados.forEach(t => tonosUnicos.add(t));
 
-            // Parsear las categorías que enviamos pegadas con "||" desde la base de datos
+            // Parsear las categorías e instrumentos que enviamos pegados con "||" desde la base de datos
             const catParseadas = cancion.categorias_texto 
-                ? cancion.categorias_texto.split('||') 
+                ? cancion.categorias_texto.split('||').filter(Boolean)
+                : [];
+            const instParseados = cancion.instrumentos_texto
+                ? cancion.instrumentos_texto.split('||').filter(Boolean)
                 : [];
 
             return {
@@ -105,7 +108,7 @@ export default function CrearLista() {
               tempo: cancion.tempo,
               tonalidades: tonosParseados,
               categorias: catParseadas, 
-              instrumentos: [] // Pendiente hasta agregar la tabla
+              instrumentos: instParseados
             };
           });
 
@@ -126,16 +129,7 @@ export default function CrearLista() {
     setFiltros({ ...filtros, [campo]: valor });
   };
 
-  const cancionesParaFiltrar = cancionesDB.map(c => ({
-    ...c,
-    tonalidades: c.tonalidades.join(', ')
-  }));
-
-  const coincidenFiltradas = filtrarCanciones(cancionesParaFiltrar as any, filtros);
-  
-  const coinciden = coincidenFiltradas.map(c => 
-    cancionesDB.find(db => db.id_cancion === c.id_cancion)
-  ).filter(Boolean) as CancionBD[];
+  const coinciden = filtrarCanciones(cancionesDB as any, filtros) as CancionBD[];
 
   const posicionDe = (id: number): number => seleccionadas.findIndex((x) => x.id_cancion === id);
 

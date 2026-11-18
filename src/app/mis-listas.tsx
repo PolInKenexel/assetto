@@ -1,8 +1,8 @@
 // src/app/mis-listas.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import GradientBox from '../components/GradientBox';
 import Pantalla from '../components/Pantalla';
@@ -19,39 +19,41 @@ export default function MisListas() {
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-  useEffect(() => {
-    const obtenerListas = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (!token) {
-          router.replace('/');
-          return;
+  useFocusEffect(
+    useCallback(() => {
+      const obtenerListas = async () => {
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          if (!token) {
+            router.replace('/');
+            return;
+          }
+
+          const response = await fetch(`${API_URL}/listas`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) router.replace('/');
+            return;
+          }
+
+          const data = await response.json();
+          setListas(data);
+        } catch (error) {
+          console.error('Error al obtener listas:', error);
+        } finally {
+          setCargando(false);
         }
+      };
 
-        const response = await fetch(`${API_URL}/listas`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) router.replace('/');
-          return;
-        }
-
-        const data = await response.json();
-        setListas(data);
-      } catch (error) {
-        console.error('Error al obtener listas:', error);
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    obtenerListas();
-  }, []);
+      obtenerListas();
+    }, [API_URL])
+  );
 
   const nuevaLista = () => {
     router.push('/crear-lista');
