@@ -624,6 +624,16 @@ app.get("/canciones/:id", autenticarUsuario, async (req, res, next) => {
     }
 });
 
+/*--- CANCIONES EN LA PAPELERA ---*/
+app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
+    try {
+        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
+        return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
 /*--- OBTENER CATEGORIAS DE UNA CANCION ---*/
 app.get("/canciones/:id/categorias", autenticarUsuario, async (req, res, next) => {
     const idCancion = Number(req.params.id);
@@ -684,16 +694,6 @@ app.get("/categorias/:id/canciones", autenticarUsuario, async (req, res, next) =
             req.user.id_usuario
         );
 
-        return res.status(200).json(canciones);
-    } catch (error) {
-        next(error);
-    }
-});
-
-/*--- CANCIONES EN LA PAPELERA ---*/
-app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
-    try {
-        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
         return res.status(200).json(canciones);
     } catch (error) {
         next(error);
@@ -891,15 +891,11 @@ app.post("/categorias", autenticarUsuario, async (req, res, next) => {
     try {
         const { nombre, tipo = "genero" } = req.body ?? {};
 
-        if (
-            typeof nombre !== "string" ||
-            nombre.trim().length === 0
-        ) {
+        if (typeof nombre !== "string" || nombre.trim().length === 0) {
             return res.status(400).json({
                 error: "El nombre de la categoría es obligatorio."
             });
         }
-
         const tiposPermitidos = [
             "genero",
             "tematica",
@@ -1508,6 +1504,83 @@ app.delete("/canciones/:id", autenticarUsuario, async (req, res, next) => {
 
         return res.status(200).json({
             mensaje: "Canción enviada a la papelera. Puedes restaurarla durante los próximos 30 días."
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- ELIMINAR CANCION DEFINITIVAMENTE ---*/
+app.delete("/canciones/:id/permanente", autenticarUsuario, async (req, res, next) => {
+    try {
+        const idCancion = obtenerIdValido(req.params.id);
+
+        if (!idCancion) {
+            return res.status(400).json({
+                error: "El ID de la canción no es válido."
+            });
+        }
+
+        // Buscamos si la canción realmente está en la papelera del usuario
+        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
+        const cancion = canciones.find(c => Number(c.id_cancion) === idCancion);
+
+        if (!cancion) {
+            return res.status(404).json({
+                error: "La canción no está en tu papelera."
+            });
+        }
+
+        // OJO: Esta función debe existir en tu archivo database.js
+        const eliminada = await db.deleteCancion(idCancion);
+
+        if (!eliminada) {
+            return res.status(409).json({
+                error: "No se pudo eliminar la canción de forma definitiva."
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: "Canción eliminada permanentemente."
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- ELIMINAR LISTA DEFINITIVAMENTE ---*/
+app.delete("/listas/:id/permanente", autenticarUsuario, async (req, res, next) => {
+    try {
+        const idLista = obtenerIdValido(req.params.id);
+
+        if (!idLista) {
+            return res.status(400).json({
+                error: "El ID de la lista no es válido."
+            });
+        }
+
+          // Buscamos si la lista realmente está en la papelera del usuario
+        const listas = await db.getListasEnPapeleraByUsuarioID(req.user.id_usuario);
+        const lista = listas.find(l => Number(l.id_lista) === idLista);
+
+        if (!lista) {
+            return res.status(404).json({
+                error: "La lista no está en tu papelera."
+            });
+        }
+      
+        const eliminada = await db.deleteLista(idLista);
+
+        if (!eliminada) {
+            return res.status(409).json({
+                error: "No se pudo eliminar la lista de forma definitiva."
+            });
+        }
+
+        return res.status(200).json({
+            mensaje: "Lista eliminada permanentemente."
         });
 
     } catch (error) {

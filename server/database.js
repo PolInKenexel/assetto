@@ -17,7 +17,7 @@ const pool = mysql.createPool({
 
 // CREATE
 
-    // Crear cancion
+// Crear cancion
 export async function createCancion(
     idUsuario, nombre, tempo, tonalidades
 ) {
@@ -36,7 +36,7 @@ export async function createCancion(
     return getCancionByID(result.insertId);
 }
 
-    // Crear categoria
+// Crear categoria
 export async function createCategoria(
     idUsuario, nombre, publico = false, tipo = 'genero'
 ) {
@@ -60,7 +60,78 @@ export async function createCategoria(
     return rows[0];
 }
 
-    // Crear relacion entre categoria-cancion
+// Obtener una categoría existente del usuario (o pública) o crearla si no existe
+export async function getOrCreateCategoria(
+    idUsuario, nombre, tipo = 'genero'
+) {
+    const nombreLimpio = nombre.trim();
+    const [existentes] = await pool.query(
+        `SELECT *
+         FROM categorias
+         WHERE LOWER(nombre) = LOWER(?)
+           AND (
+               id_usuario = ?
+               OR (id_usuario IS NULL AND publico = TRUE)
+           )
+         ORDER BY id_usuario DESC
+         LIMIT 1`,
+        [nombreLimpio, idUsuario]
+    );
+
+    if (existentes.length > 0) {
+        return existentes[0];
+    }
+
+    return createCategoria(idUsuario, nombreLimpio, false, tipo);
+}
+
+// Sincronizar todas las categorías e instrumentos de una canción
+export async function syncCategoriasDeCancion(
+    idCancion, idUsuario, categorias = [], instrumentos = []
+) {
+    // Eliminar las asociaciones previas de la canción
+    await pool.query(
+        `DELETE cc
+         FROM canciones_categorias cc
+         INNER JOIN canciones ca ON ca.id_cancion = cc.id_cancion
+         WHERE cc.id_cancion = ?
+           AND ca.id_usuario = ?`,
+        [idCancion, idUsuario]
+    );
+
+    const items = [
+        ...categorias.map(c => ({ valor: c, tipoDefecto: 'genero' })),
+        ...instrumentos.map(i => ({ valor: i, tipoDefecto: 'instrumento' }))
+    ];
+
+    for (const { valor, tipoDefecto } of items) {
+        let idCategoria = null;
+
+        if (typeof valor === 'number' && Number.isSafeInteger(valor) && valor > 0) {
+            idCategoria = valor;
+        } else if (typeof valor === 'string' && valor.trim().length > 0) {
+            const cat = await getOrCreateCategoria(idUsuario, valor.trim(), tipoDefecto);
+            idCategoria = cat.id_categoria;
+        } else if (valor && typeof valor === 'object') {
+            if (Number.isSafeInteger(valor.id_categoria) && valor.id_categoria > 0 && !valor.nombre) {
+                idCategoria = valor.id_categoria;
+            } else if (typeof valor.nombre === 'string' && valor.nombre.trim().length > 0) {
+                const cat = await getOrCreateCategoria(
+                    idUsuario,
+                    valor.nombre.trim(),
+                    valor.tipo ?? tipoDefecto
+                );
+                idCategoria = cat.id_categoria;
+            }
+        }
+
+        if (idCategoria) {
+            await addCategoriaToCancion(idCancion, idCategoria, idUsuario);
+        }
+    }
+}
+
+// Crear relacion entre categoria-cancion
 export async function addCategoriaToCancion(
     idCancion, idCategoria, idUsuario
 ) {
@@ -94,7 +165,7 @@ export async function addCategoriaToCancion(
     return result.affectedRows > 0;
 }
 
-    // Crear lista
+// Crear lista
 export async function createLista(idUsuario, nombre) {
     const [result] = await pool.query(
         `INSERT INTO listas (id_usuario, nombre)
@@ -105,7 +176,7 @@ export async function createLista(idUsuario, nombre) {
     return getListaByID(result.insertId);
 }
 
-    // Agregar una cancion a una lista
+// Agregar una cancion a una lista
 export async function addCancionToLista(
     idLista, idCancion, idUsuario, grupo = null
 ) {
@@ -143,6 +214,21 @@ export async function addCancionToLista(
             throw new Error('La canción no existe, esta en la papelera o no pertenece al usuario.');
         }
 
+        // Evitar duplicar la misma canción dentro de la misma lista.
+        const [existentes] = await connection.query(
+            `SELECT 1
+             FROM listas_canciones
+             WHERE id_lista = ?
+               AND id_cancion = ?
+             LIMIT 1`,
+            [idLista, idCancion]
+        );
+
+        if (existentes.length > 0) {
+            await connection.rollback();
+            return false;
+        }
+
         // Obtener la siguiente posición disponible.
         const [posiciones] = await connection.query(
             `SELECT COALESCE(MAX(posicion) + 1, 0) AS siguiente_posicion
@@ -175,13 +261,27 @@ export async function addCancionToLista(
 
 // READ
 
-    // Obtener una sola cancion por su ID (Dejar, de momento...)
+    // Obtener una sola cancion por su ID
 export async function getCancionByID(id) {
     const [rows] = await pool.query(
-        `SELECT *
-         FROM canciones
-         WHERE id_cancion = ?
-           AND fecha_eliminacion IS NULL`,
+        `SELECT c.*,
+            (
+                SELECT GROUP_CONCAT(cat.nombre SEPARATOR '||')
+                FROM canciones_categorias cc
+                INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
+                WHERE cc.id_cancion = c.id_cancion
+                  AND cat.tipo <> 'instrumento'
+            ) AS categorias_texto,
+            (
+                SELECT GROUP_CONCAT(cat.nombre SEPARATOR '||')
+                FROM canciones_categorias cc
+                INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
+                WHERE cc.id_cancion = c.id_cancion
+                  AND cat.tipo = 'instrumento'
+            ) AS instrumentos_texto
+         FROM canciones c
+         WHERE c.id_cancion = ?
+           AND c.fecha_eliminacion IS NULL`,
         [id]
     );
 
@@ -197,7 +297,15 @@ export async function getCancionesByUsuarioID(id) {
                 FROM canciones_categorias cc
                 INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
                 WHERE cc.id_cancion = c.id_cancion
-            ) AS categorias_texto
+                  AND cat.tipo <> 'instrumento'
+            ) AS categorias_texto,
+            (
+                SELECT GROUP_CONCAT(cat.nombre SEPARATOR '||')
+                FROM canciones_categorias cc
+                INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
+                WHERE cc.id_cancion = c.id_cancion
+                  AND cat.tipo = 'instrumento'
+            ) AS instrumentos_texto
          FROM canciones c
          WHERE c.id_usuario = ?
            AND c.fecha_eliminacion IS NULL
@@ -208,7 +316,7 @@ export async function getCancionesByUsuarioID(id) {
     return rows;
 }
 
-    // Obtener todas las categorias de un usuario
+// Obtener todas las categorias de un usuario
 export async function getCategoriasByUsuarioID(id) {
     const [rows] = await pool.query(
         `SELECT *
@@ -222,7 +330,7 @@ export async function getCategoriasByUsuarioID(id) {
     return rows;
 }
 
-    // Obtener todas las categorias que tiene una cancion
+// Obtener todas las categorias que tiene una cancion
 export async function getCategoriasByCancionID(id) {
     const [rows] = await pool.query(
         `SELECT c.*
@@ -265,7 +373,7 @@ export async function getCancionesByCategoriaID(
     return rows;
 }
 
-    // Obtener todas las listas de un usuario
+// Obtener todas las listas de un usuario
 export async function getListasByUsuarioID(id) {
     const [rows] = await pool.query(
         `SELECT *
@@ -279,7 +387,7 @@ export async function getListasByUsuarioID(id) {
     return rows;
 }
 
-    // Obtener una sola lista por su ID
+// Obtener una sola lista por su ID
 export async function getListaByID(idLista) {
     const [rows] = await pool.query(
         `SELECT *
@@ -292,10 +400,16 @@ export async function getListaByID(idLista) {
     return rows[0];
 }
 
-    // Obtener todas las canciones que pertenecen a una lista
+// Obtener todas las canciones que pertenecen a una lista
 export async function getCancionesByListaID(idLista) {
     const [rows] = await pool.query(
-        `SELECT c.*, lc.posicion, lc.grupo
+        `SELECT c.*, lc.posicion, lc.grupo,
+            (
+                SELECT GROUP_CONCAT(cat.nombre SEPARATOR '||')
+                FROM canciones_categorias cc
+                INNER JOIN categorias cat ON cc.id_categoria = cat.id_categoria
+                WHERE cc.id_cancion = c.id_cancion
+            ) AS categorias_texto
          FROM canciones c
          INNER JOIN listas_canciones lc
              ON c.id_cancion = lc.id_cancion
@@ -311,7 +425,7 @@ export async function getCancionesByListaID(idLista) {
     return rows;
 }
 
-    // Obtener todas las canciones que estan en la papelera de un usuario
+// Obtener todas las canciones que estan en la papelera de un usuario
 export async function getCancionesEnPapeleraByUsuarioID(idUsuario) {
     const [rows] = await pool.query(
         `SELECT *
@@ -325,7 +439,7 @@ export async function getCancionesEnPapeleraByUsuarioID(idUsuario) {
     return rows;
 }
 
-    // Obtener todas las listas que estan en la papelera de un usuario
+// Obtener todas las listas que estan en la papelera de un usuario
 export async function getListasEnPapeleraByUsuarioID(idUsuario) {
     const [rows] = await pool.query(
         `SELECT *
@@ -342,7 +456,7 @@ export async function getListasEnPapeleraByUsuarioID(idUsuario) {
 
 // UPDATE
 
-    // Actualizar datos de una cancion
+// Actualizar datos de una cancion
 export async function updateCancion(
     id, nombre, tempo, tonalidades
 ) {
@@ -392,7 +506,7 @@ export async function updateNombreLista(idLista, nombre) {
     return result.affectedRows > 0;
 }
 
-    // Cambiar el grupo de una cancion dentro de una lista
+// Cambiar el grupo de una cancion dentro de una lista
 export async function updateGrupoCancionEnLista(
     idLista, idCancion, grupo
 ) {
@@ -406,7 +520,7 @@ export async function updateGrupoCancionEnLista(
     return result.affectedRows > 0;
 }
 
-    // Reordenar las canciones activas de una lista
+// Reordenar las canciones activas de una lista
 export async function reorderCancionesEnLista(
     idLista, idsCancionesOrdenados
 ) {
@@ -527,7 +641,7 @@ export async function reorderCancionesEnLista(
 
 // DELETE
 
-    // Enviar una cancion a la papelera
+// Enviar una cancion a la papelera
 export async function moveCancionToTrash(id) {
     const [result] = await pool.query(
         `UPDATE canciones
@@ -540,7 +654,7 @@ export async function moveCancionToTrash(id) {
     return result.affectedRows > 0;
 }
 
-    // Restaurar una canción de la papelera y colocarla al final
+// Restaurar una canción de la papelera y colocarla al final
 export async function restoreCancion(id) {
     const connection = await pool.getConnection();
 
@@ -617,7 +731,7 @@ export async function restoreCancion(id) {
     }
 }
 
-    // Enviar una lista a la papelera
+// Enviar una lista a la papelera
 export async function moveListaToTrash(idLista) {
     const [result] = await pool.query(
         `UPDATE listas
@@ -630,7 +744,7 @@ export async function moveListaToTrash(idLista) {
     return result.affectedRows > 0;
 }
 
-    // Restaurar una lista de la papelera
+// Restaurar una lista de la papelera
 export async function restoreLista(idLista) {
     const [result] = await pool.query(
         `UPDATE listas
@@ -645,7 +759,7 @@ export async function restoreLista(idLista) {
     return result.affectedRows > 0;
 }
 
-    // Eliminar DEFINITIVAMENTE una cancion
+// Eliminar DEFINITIVAMENTE una cancion
 export async function deleteCancion(id) {
     const [result] = await pool.query(
         `DELETE FROM canciones
@@ -656,7 +770,7 @@ export async function deleteCancion(id) {
     return result.affectedRows > 0;
 }
 
-    // Eliminar DEFINITIVAMENTE una categoria
+// Eliminar DEFINITIVAMENTE una categoria
 export async function deleteCategoria(id) {
     const [result] = await pool.query(
         `DELETE FROM categorias
@@ -667,7 +781,7 @@ export async function deleteCategoria(id) {
     return result.affectedRows > 0;
 }
 
-    // Eliminar una relacion entre categoria-cancion
+// Eliminar una relacion entre categoria-cancion
 export async function removeCategoriaFromCancion(
     idCancion, idCategoria, idUsuario
 ) {
@@ -691,7 +805,7 @@ export async function removeCategoriaFromCancion(
     return result.affectedRows > 0;
 }
 
-    // Eliminar una relacion entre lista-cancion
+// Eliminar una relacion entre lista-cancion
 export async function removeCancionFromLista(
     idLista, idCancion, idUsuario
 ) {
@@ -712,7 +826,7 @@ export async function removeCancionFromLista(
     return result.affectedRows > 0;
 }
 
-    // Eliminar DEFINITIVAMENTE una lista
+// Eliminar DEFINITIVAMENTE una lista
 export async function deleteLista(idLista) {
     const [result] = await pool.query(
         `DELETE FROM listas
@@ -727,7 +841,7 @@ export async function deleteLista(idLista) {
 
 // CREATE
 
-    // Crear un usuario nuevo
+// Crear un usuario nuevo
 export async function createUsuario(
     nombre,
     apellido,
@@ -747,7 +861,7 @@ export async function createUsuario(
 
 // READ
 
-    // Obtener datos del usuario por su ID (solo cuentas activas)
+// Obtener datos del usuario por su ID (solo cuentas activas)
 export async function getUsuarioByID(id) {
     const [rows] = await pool.query(
         `SELECT
@@ -765,7 +879,7 @@ export async function getUsuarioByID(id) {
     return rows[0];
 }
 
-    // Obtener datos de autenticacion del usuario por su email.
+// Obtener datos de autenticacion del usuario por su email.
 export async function getUsuarioByEmail(email) {
     const [rows] = await pool.query(
         `SELECT
@@ -784,7 +898,7 @@ export async function getUsuarioByEmail(email) {
     return rows[0];
 }
 
-    // Comprobar si un correo ya ha sido usado en la BD
+// Comprobar si un correo ya ha sido usado en la BD
 export async function emailExists(email) {
     const [rows] = await pool.query(
         `SELECT 1
@@ -800,7 +914,7 @@ export async function emailExists(email) {
 
 // UPDATE
 
-    // Actualizar los datos del usuario (solo cuentas activas)
+// Actualizar los datos del usuario (solo cuentas activas)
 export async function updateUsuario(
     id,
     nombre,
@@ -820,7 +934,7 @@ export async function updateUsuario(
     return result.affectedRows > 0;
 }
 
-    // Actualizar la contrasenya del usuario (solo cuentas activas)
+// Actualizar la contrasenya del usuario (solo cuentas activas)
 export async function updatePasswordHash(id, passwordHash) {
     const [result] = await pool.query(
         `UPDATE usuarios
@@ -836,7 +950,7 @@ export async function updatePasswordHash(id, passwordHash) {
 
 // DELETE
 
-    // Marcar una cuenta como eliminada; puede recuperarse durante 14 dias
+// Marcar una cuenta como eliminada; puede recuperarse durante 14 dias
 export async function moveUsuarioToTrash(id) {
     const [result] = await pool.query(
         `UPDATE usuarios
@@ -849,7 +963,7 @@ export async function moveUsuarioToTrash(id) {
     return result.affectedRows > 0;
 }
 
-    // Restaurar una cuenta eliminada dentro del periodo de 14 dias
+// Restaurar una cuenta eliminada dentro del periodo de 14 dias
 export async function restoreUsuario(id) {
     const [result] = await pool.query(
         `UPDATE usuarios
@@ -863,7 +977,7 @@ export async function restoreUsuario(id) {
     return result.affectedRows > 0;
 }
 
-    // Eliminar DEFINITIVAMENTE a un usuario
+// Eliminar DEFINITIVAMENTE a un usuario
 export async function deleteUsuario(id) {
     const [result] = await pool.query(
         `DELETE FROM usuarios

@@ -187,6 +187,11 @@ export function BarraBusqueda({ value, onChangeText, placeholder }: { value: str
         placeholderTextColor={c.textoTenue}
         style={{ flex: 1, fontFamily: fuentes.normal, fontSize: 13, color: c.texto, paddingVertical: 12 }}
       />
+      {value.length > 0 && (
+        <TouchableOpacity onPress={() => onChangeText('')} hitSlop={8}>
+          <Ionicons name="close-circle" size={16} color={c.textoTenue} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -312,7 +317,7 @@ export function Segmentado<T extends string>({ opciones, valor, onChange }: { op
 export function Tonalidades({ lista }: { lista: string[] }) {
   const c = useColores();
   return (
-    <View style={{ flexDirection: 'row', gap: 4 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 4, maxWidth: 120 }}>
       {lista.map((t) => (
         <View key={t} style={{ backgroundColor: c.azulTenue, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 7 }}>
           <Text style={{ fontFamily: fuentes.extra, fontWeight: '700', fontSize: 10.5, color: c.azul }}>{t}</Text>
