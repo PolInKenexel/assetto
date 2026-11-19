@@ -31,45 +31,40 @@ El atractivo principal de nuestra aplicación es almacenar tu repertorio persona
 
 Ya pueden ignorar esta parte, solo la necesitamos para visualizar algunas cosas, es todo:
 
-🏠assetto <br>
-│ <br>
-├─ 📁.expo <br>
-├─ 📁.vscode <br>
-├─ 📁assets <br>
-│  │ <br>
-│	├─ 📁backgrounds <br>
-│	└─ logo.png <br>
-├─ 📁node_modules <br>
-├─ 📁scripts <br>
-│  │ <br>
-│  └─ reset-project.js <br>
-├─ 📁server <br>
-│	│ <br>
-│	├─ 📁node_modules <br>
-│	├─ .env <br>
-│	├─ app.js <br>
-│	├─ database.js <br>
-│	├─ package.json <br>
-│	├─ package-lock.json <br>
-│	├─ schema.sql <br>
-│	└─ yarn.lock <br>
-├─ 📁src <br>
-│	│ <br>
-│	├─ 📁app <br>
-│	├─ 📁components <br>
-│	├─ 📁constants <br>
-│	├─ 📁context <br>
-│	├─ 📁hooks <br>
-│	└─ global.css <br>
-├─ .env <br>
-├─ .gitignore <br>
-├─ AGENTS.md <br>
-├─ app.json <br>
-├─ expo-env.d.ts <br>
-├─ LICENSE <br>
-├─ metro.config.js <br>
-├─ package.json <br>
-├─ package-lock.json <br>
-├─ README.md <br>
-├─ svg.d.ts <br>
+🏠assetto<br>
+│<br>
+├─ 📁.expo [Ignorado]<br>
+├─ 📁.vscode<br>
+├─ 📁assets<br>
+│	│<br>
+│	├─ 📁backgrounds<br>
+│	└─ logo.png<br>
+├─ 📁node_modules [Ignorado]<br>
+├─ 📁server<br>
+│	│<br>
+│	├─ 📁node_modules [Ignorado]<br>
+│	├─ .env [Ignorado]<br>
+│	├─ app.js<br>
+│	├─ database.js<br>
+│	├─ package-lock.json<br>
+│	├─ package.json<br>
+│	└─ schema.sql<br>
+├─ 📁src<br>
+│	│<br>
+│	├─ 📁app<br>
+│	├─ 📁components<br>
+│	├─ 📁constants<br>
+│	├─ 📁context<br>
+│	├─ 📁hooks<br>
+│	└─ global.css<br>
+├─ .env [Ignorado]<br>
+├─ .gitignore<br>
+├─ app.json<br>
+├─ expo-env.d.ts [Ignorado]<br>
+├─ LICENSE<br>
+├─ metro.config.js<br>
+├─ package-lock.json<br>
+├─ package.json<br>
+├─ README.md<br>
+├─ svg.d.ts<br>
 └─ tsconfig.json

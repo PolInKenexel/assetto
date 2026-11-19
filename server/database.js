@@ -133,19 +133,33 @@ export async function syncCategoriasDeCancion(
 
 // Crear relacion entre categoria-cancion
 export async function addCategoriaToCancion(
-    idCancion, idCategoria
+    idCancion, idCategoria, idUsuario
 ) {
-    // Evita insertar dos veces la misma categoria.
     const [result] = await pool.query(
         `INSERT INTO canciones_categorias
             (id_cancion, id_categoria)
          SELECT ?, ?
-         WHERE NOT EXISTS (
-             SELECT 1
-             FROM canciones_categorias
-             WHERE id_cancion = ? AND id_categoria = ?
-         )`,
-        [idCancion, idCategoria, idCancion, idCategoria]
+         FROM canciones ca
+         INNER JOIN categorias cat
+             ON cat.id_categoria = ?
+         WHERE ca.id_cancion = ?
+           AND ca.id_usuario = ?
+           AND ca.fecha_eliminacion IS NULL
+           AND (
+                cat.id_usuario = ?
+                OR (cat.id_usuario IS NULL AND cat.publico = TRUE)
+           )
+           AND NOT EXISTS (
+               SELECT 1
+               FROM canciones_categorias cc
+               WHERE cc.id_cancion = ?
+                 AND cc.id_categoria = ?
+           )`,
+        [
+            idCancion, idCategoria,
+            idCategoria, idCancion, idUsuario,
+            idUsuario, idCancion, idCategoria
+        ]
     );
 
     return result.affectedRows > 0;
@@ -164,35 +178,40 @@ export async function createLista(idUsuario, nombre) {
 
 // Agregar una cancion a una lista
 export async function addCancionToLista(
-    idLista, idCancion, grupo = null
+    idLista, idCancion, idUsuario, grupo = null
 ) {
     const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
 
-        // Bloquea la lista mientras se calcula la siguiente posicion.
+        // Comprobar que la lista pertenece al usuario.
         const [listas] = await connection.query(
             `SELECT id_lista
              FROM listas
-             WHERE id_lista = ? AND fecha_eliminacion IS NULL
+             WHERE id_lista = ?
+               AND id_usuario = ?
+               AND fecha_eliminacion IS NULL
              FOR UPDATE`,
-            [idLista]
+            [idLista, idUsuario]
         );
 
         if (listas.length === 0) {
-            throw new Error('La lista no existe o está en la papelera.');
+            throw new Error('La lista no existe, esta en la papelera o no pertenece al usuario.');
         }
 
+        // Comprobar que la canción pertenece al mismo usuario.
         const [canciones] = await connection.query(
             `SELECT id_cancion
              FROM canciones
-             WHERE id_cancion = ? AND fecha_eliminacion IS NULL`,
-            [idCancion]
+             WHERE id_cancion = ?
+               AND id_usuario = ?
+               AND fecha_eliminacion IS NULL`,
+            [idCancion, idUsuario]
         );
 
         if (canciones.length === 0) {
-            throw new Error('La canción no existe o está en la papelera.');
+            throw new Error('La canción no existe, esta en la papelera o no pertenece al usuario.');
         }
 
         // Evitar duplicar la misma canción dentro de la misma lista.
@@ -242,7 +261,7 @@ export async function addCancionToLista(
 
 // READ
 
-// Obtener una sola cancion por su ID
+    // Obtener una sola cancion por su ID
 export async function getCancionByID(id) {
     const [rows] = await pool.query(
         `SELECT c.*,
@@ -269,7 +288,7 @@ export async function getCancionByID(id) {
     return rows[0];
 }
 
-// Obtener todas las canciones de un usuario
+    // Obtener todas las canciones de un usuario
 export async function getCancionesByUsuarioID(id) {
     const [rows] = await pool.query(
         `SELECT c.*, 
@@ -330,16 +349,25 @@ export async function getCategoriasByCancionID(id) {
 }
 
     // Obtener todas las canciones que pertenecen a una categoria
-export async function getCancionesByCategoriaID(id) {
+export async function getCancionesByCategoriaID(
+    idCategoria, idUsuario
+) {
     const [rows] = await pool.query(
         `SELECT c.*
          FROM canciones c
          INNER JOIN canciones_categorias cc
              ON c.id_cancion = cc.id_cancion
+         INNER JOIN categorias cat
+             ON cat.id_categoria = cc.id_categoria
          WHERE cc.id_categoria = ?
+           AND c.id_usuario = ?
+           AND (
+                cat.id_usuario = ?
+                OR (cat.id_usuario IS NULL AND cat.publico = TRUE)
+           )
            AND c.fecha_eliminacion IS NULL
          ORDER BY c.nombre ASC`,
-        [id]
+        [idCategoria, idUsuario, idUsuario]
     );
 
     return rows;
@@ -448,7 +476,7 @@ export async function updateCancion(
     return result.affectedRows > 0;
 }
 
-// Actualizar datos de una categoria personal
+    // Actualizar datos de una categoria personal
 export async function updateCategoria(
     idCategoria, idUsuario, nombre, tipo
 ) {
@@ -465,7 +493,7 @@ export async function updateCategoria(
 }
 
 
-// Actualizar el nombre de una lista
+    // Actualizar el nombre de una lista
 export async function updateNombreLista(idLista, nombre) {
     const [result] = await pool.query(
         `UPDATE listas
@@ -639,6 +667,8 @@ export async function restoreCancion(id) {
              FROM canciones
              WHERE id_cancion = ?
                AND fecha_eliminacion IS NOT NULL
+               AND fecha_eliminacion >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+               AND fecha_eliminacion <= CURRENT_TIMESTAMP
              FOR UPDATE`,
             [id]
         );
@@ -720,7 +750,9 @@ export async function restoreLista(idLista) {
         `UPDATE listas
          SET fecha_eliminacion = NULL
          WHERE id_lista = ?
-           AND fecha_eliminacion IS NOT NULL`,
+           AND fecha_eliminacion IS NOT NULL
+           AND fecha_eliminacion >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+           AND fecha_eliminacion <= CURRENT_TIMESTAMP`,
         [idLista]
     );
 
@@ -751,12 +783,23 @@ export async function deleteCategoria(id) {
 
 // Eliminar una relacion entre categoria-cancion
 export async function removeCategoriaFromCancion(
-    idCancion, idCategoria
+    idCancion, idCategoria, idUsuario
 ) {
     const [result] = await pool.query(
-        `DELETE FROM canciones_categorias
-         WHERE id_cancion = ? AND id_categoria = ?`,
-        [idCancion, idCategoria]
+        `DELETE cc
+         FROM canciones_categorias cc
+         INNER JOIN canciones ca
+             ON ca.id_cancion = cc.id_cancion
+         INNER JOIN categorias cat
+             ON cat.id_categoria = cc.id_categoria
+         WHERE cc.id_cancion = ?
+           AND cc.id_categoria = ?
+           AND ca.id_usuario = ?
+           AND (
+                cat.id_usuario = ?
+                OR (cat.id_usuario IS NULL AND cat.publico = TRUE)
+           )`,
+        [idCancion, idCategoria, idUsuario, idUsuario]
     );
 
     return result.affectedRows > 0;
@@ -764,12 +807,20 @@ export async function removeCategoriaFromCancion(
 
 // Eliminar una relacion entre lista-cancion
 export async function removeCancionFromLista(
-    idLista, idCancion
+    idLista, idCancion, idUsuario
 ) {
     const [result] = await pool.query(
-        `DELETE FROM listas_canciones
-         WHERE id_lista = ? AND id_cancion = ?`,
-        [idLista, idCancion]
+        `DELETE lc
+         FROM listas_canciones lc
+         INNER JOIN listas l
+             ON l.id_lista = lc.id_lista
+         INNER JOIN canciones c
+             ON c.id_cancion = lc.id_cancion
+         WHERE lc.id_lista = ?
+           AND lc.id_cancion = ?
+           AND l.id_usuario = ?
+           AND c.id_usuario = ?`,
+        [idLista, idCancion, idUsuario, idUsuario]
     );
 
     return result.affectedRows > 0;
@@ -937,20 +988,7 @@ export async function deleteUsuario(id) {
     return result.affectedRows > 0;
 }
 
-// Cerrar el pool cuando la aplicacion termine.
+    // Cerrar el pool cuando la aplicacion termine.
 export async function closeDatabase() {
     await pool.end();
-}
-
-export async function getCancionesDeLista(idLista) {
-    const query = `
-        SELECT c.*, lc.posicion, lc.grupo 
-        FROM canciones c
-        INNER JOIN listas_canciones lc ON c.id_cancion = lc.id_cancion
-        WHERE lc.id_lista = ?
-        ORDER BY lc.posicion ASC
-    `;
-    
-    const [rows] = await pool.query(query, [idLista]);
-    return rows;
 }

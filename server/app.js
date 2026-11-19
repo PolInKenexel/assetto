@@ -1,3 +1,4 @@
+/*--- ---*/
 //server/app.js
 import bcrypt from "bcryptjs";
 import cors from "cors";
@@ -10,14 +11,10 @@ import * as db from "./database.js";
 
 dotenv.config();
 
-/*--- CONFIGURACIÓN ---*/
-
+/*--- CONFIGURACION ---*/
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (
-    !JWT_SECRET ||
-    Buffer.byteLength(JWT_SECRET, "utf8") < 32
-) {
+if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, "utf8") < 32) {
     throw new Error(
         "JWT_SECRET debe existir y tener al menos 32 bytes."
     );
@@ -35,17 +32,17 @@ const corsOptions = {
         "http://localhost:5173",
         "http://localhost:8081" // Permite al navegador de VS Code
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
 };
 
 /*--- MIDDLEWARES GENERALES ---*/
-
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10kb" }));
 
-/*--- LIMITAR INTENTOS DE AUTENTICACIÓN ---*/
+    // =========================== AUTENTICACION ===========================
 
+/*--- Limitar intentos para autenticarse ---*/
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
@@ -59,8 +56,7 @@ const authLimiter = rateLimit({
     }
 });
 
-/*--- CREAR TOKEN DE ACCESO ---*/
-
+/*--- Crear token (JSON Web Token) de acceso ---*/
 function crearTokenAcceso(usuario) {
     return jwt.sign(
         {
@@ -76,8 +72,7 @@ function crearTokenAcceso(usuario) {
     );
 }
 
-/*--- RESPUESTA DE AUTENTICACIÓN ---*/
-
+/*--- Alguna respuesta de la autenticacion (por defecto todo bien) ---*/
 function responderAutenticacion(res, usuario, status = 200) {
     const token = crearTokenAcceso(usuario);
 
@@ -89,8 +84,9 @@ function responderAutenticacion(res, usuario, status = 200) {
     });
 }
 
-/*--- REGISTRO ---*/
+    // =========================== CRUD DE USUARIOS ===========================
 
+/*--- REGISTRO ---*/
 app.post("/auth/register", authLimiter, async (req, res, next) => {
     try {
         const {
@@ -185,8 +181,7 @@ app.post("/auth/register", authLimiter, async (req, res, next) => {
     }
 });
 
-/*--- INICIO DE SESIÓN ---*/
-
+/*--- INICIO DE SESION ---*/
 app.post("/auth/login", authLimiter, async (req, res, next) => {
     try {
         const email =
@@ -207,16 +202,9 @@ app.post("/auth/login", authLimiter, async (req, res, next) => {
 
         const usuarioBD = await db.getUsuarioByEmail(email);
 
-        const esPasswordTextoPlano = password === usuarioBD?.password_hash;
-        
-        let esPasswordValido = esPasswordTextoPlano;
-        if (!esPasswordValido && usuarioBD) {
-            try {
-                esPasswordValido = await bcrypt.compare(password, usuarioBD.password_hash);
-            } catch (e) {
-                esPasswordValido = false;
-            }
-        }
+        const esPasswordValido = usuarioBD
+            ? await bcrypt.compare(password, usuarioBD.password_hash)
+            : false;
 
         if (!usuarioBD || !esPasswordValido) {
             return res.status(401).json({
@@ -252,12 +240,8 @@ app.post("/auth/login", authLimiter, async (req, res, next) => {
     }
 });
 
-/*--- RECUPERAR UNA CUENTA ELIMINADA ---*/
-
-app.post(
-    "/auth/restore-account",
-    authLimiter,
-    async (req, res, next) => {
+/*--- recuperar una cuenta eliminada (Podriamos usarla para implementar una pagina directa de restauracion, como alternativa a intentar recuperarla automaticamente al iniciar sesion, como ya hace actualmente) ---*/
+app.post("/auth/restore-account", authLimiter, async (req, res, next) => {
         try {
             const email =
                 typeof req.body?.email === "string"
@@ -540,19 +524,20 @@ function grupoValido(grupo) {
     
     // =========================== GET ===========================
 
+/*--- Ruta de la sesion actual ---*/
 app.get("/auth/me", autenticarUsuario, (req, res) => {
     return res.status(200).json({
         usuario: req.user
     });
 });
 
-/*--- RUTA DE PRUEBA ---*/
-
+/*--- Ruta tan pronto se inicia la API ---*/
 app.get("/", (req, res) => {
     return res.status(200).json({
         mensaje: "API de Assetto funcionando correctamente"
     });
 });
+
 /*--- CATEGORIAS DEL USUARIO AUTENTICADO ---*/
 app.get("/categorias", autenticarUsuario, async (req, res, next) => {
     try {
@@ -564,51 +549,19 @@ app.get("/categorias", autenticarUsuario, async (req, res, next) => {
 });
 
 /*--- CANCIONES DEL USUARIO AUTENTICADO ---*/
-
 app.get("/canciones", autenticarUsuario, async (req, res, next) => {
     try {
-        const canciones = await db.getCancionesByUsuarioID(
-            req.user.id_usuario
-        );
-
+        const canciones = await db.getCancionesByUsuarioID(req.user.id_usuario);
         return res.status(200).json(canciones);
-
     } catch (error) {
         next(error);
     }
 });
-
-
 
 /*--- LISTAS DEL USUARIO AUTENTICADO ---*/
-
 app.get("/listas", autenticarUsuario, async (req, res, next) => {
     try {
-        const listas = await db.getListasByUsuarioID(
-            req.user.id_usuario
-        );
-
-        return res.status(200).json(listas);
-
-    } catch (error) {
-        next(error);
-    }
-});
-
-/*--- CANCIONES EN LA PAPELERA (MOVIDO AQUÍ) ---*/
-app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
-    try {
-        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
-        return res.status(200).json(canciones);
-    } catch (error) {
-        next(error);
-    }
-});
-
-/*--- LISTAS EN LA PAPELERA (MOVIDO AQUÍ) ---*/
-app.get("/listas/papelera", autenticarUsuario, async (req, res, next) => {
-    try {
-        const listas = await db.getListasEnPapeleraByUsuarioID(req.user.id_usuario);
+        const listas = await db.getListasByUsuarioID(req.user.id_usuario);
         return res.status(200).json(listas);
     } catch (error) {
         next(error);
@@ -626,8 +579,132 @@ app.get("/listas/:id/canciones", autenticarUsuario, async (req, res, next) => {
     }
 
     try {
-        const canciones = await db.getCancionesDeLista(idLista);
+        const lista = await db.getListaByID(idLista);
+
+        if (!lista || Number(lista.id_usuario) !== req.user.id_usuario) 
+        {
+            return res.status(404).json({
+                error: "La lista no existe o no está disponible."
+            });
+        }
+
+        const canciones = await db.getCancionesByListaID(idLista);
+
         return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER UNA CANCION ESPECIFICA ---*/
+app.get("/canciones/:id", autenticarUsuario, async (req, res, next) => {
+    const idCancion = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCancion) || idCancion <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la canción no es válido."
+        });
+    }
+
+    try {
+        const cancion = await db.getCancionByID(idCancion);
+
+        if (
+            !cancion ||
+            Number(cancion.id_usuario) !== req.user.id_usuario
+        ) {
+            return res.status(404).json({
+                error: "La canción no existe o no está disponible."
+            });
+        }
+
+        return res.status(200).json(cancion);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- CANCIONES EN LA PAPELERA ---*/
+app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
+    try {
+        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
+        return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER CATEGORIAS DE UNA CANCION ---*/
+app.get("/canciones/:id/categorias", autenticarUsuario, async (req, res, next) => {
+    const idCancion = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCancion) || idCancion <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la canción no es válido."
+        });
+    }
+
+    try {
+        const cancion = await db.getCancionByID(idCancion);
+
+        if (
+            !cancion ||
+            Number(cancion.id_usuario) !== req.user.id_usuario
+        ) {
+            return res.status(404).json({
+                error: "La canción no existe o no está disponible."
+            });
+        }
+
+        const categorias = await db.getCategoriasByCancionID(idCancion);
+
+        return res.status(200).json(categorias);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- OBTENER CANCIONES DE UNA CATEGORIA ---*/
+app.get("/categorias/:id/canciones", autenticarUsuario, async (req, res, next) => {
+    const idCategoria = Number(req.params.id);
+
+    if (!Number.isSafeInteger(idCategoria) || idCategoria <= 0) {
+        return res.status(400).json({
+            error: "El identificador de la categoría no es válido."
+        });
+    }
+
+    try {
+        const categoriasUsuario = await db.getCategoriasByUsuarioID(
+            req.user.id_usuario
+        );
+
+        const categoriaDisponible = categoriasUsuario.some(
+            categoria => Number(categoria.id_categoria) === idCategoria
+        );
+
+        if (!categoriaDisponible) {
+            return res.status(404).json({
+                error: "La categoría no existe o no está disponible."
+            });
+        }
+
+        const canciones = await db.getCancionesByCategoriaID(
+            idCategoria,
+            req.user.id_usuario
+        );
+
+        return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/*--- LISTAS EN LA PAPELERA ---*/
+app.get("/listas/papelera", autenticarUsuario, async (req, res, next) => {
+    try {
+        const listas = await db.getListasEnPapeleraByUsuarioID(req.user.id_usuario);
+        return res.status(200).json(listas);
     } catch (error) {
         next(error);
     }
@@ -638,7 +715,7 @@ app.get("/listas/:id/canciones", autenticarUsuario, async (req, res, next) => {
 /*--- CREAR NUEVA LISTA ---*/
 app.post("/listas", autenticarUsuario, async (req, res, next) => {
     try {
-        const { nombre, canciones } = req.body;
+        const { nombre, canciones } = req.body ?? {};
 
         if (typeof nombre !== "string" || nombre.trim().length === 0) {
             return res.status(400).json({
@@ -667,8 +744,16 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
             });
         }
 
-        // 2. Si el usuario seleccionó canciones, las agregamos en el orden recibido
-        if (Array.isArray(canciones) && canciones.length > 0) {
+        const nuevaLista = await db.createLista(
+            req.user.id_usuario,
+            nombre.trim()
+        );
+
+        if (!nuevaLista) {
+            throw new Error("No se pudo crear la lista.");
+        }
+
+        if (canciones?.length > 0) {
             for (const cancion of canciones) {
     // Opcionalmente, podría hacerse que las canciones ya vengan organizadas en grupo desde la creacion de la lista
                 await db.addCancionToLista(nuevaLista.id_lista, Number(cancion.id_cancion), req.user.id_usuario, cancion.grupo ?? null);
@@ -681,7 +766,7 @@ app.post("/listas", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- CREAR NUEVA CANCIÓN ---*/
+/*--- CREAR NUEVA CANCION ---*/
 app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     try {
         const {nombre, tempo, tonalidades, categorias} = req.body ?? {};
@@ -801,22 +886,16 @@ app.post("/canciones", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- RUTA NO ENCONTRADA ---*/
-
-    /*--- CREAR NUEVA CATEGORIA ---*/
+/*--- CREAR NUEVA CATEGORIA ---*/
 app.post("/categorias", autenticarUsuario, async (req, res, next) => {
     try {
         const { nombre, tipo = "genero" } = req.body ?? {};
 
-        if (
-            typeof nombre !== "string" ||
-            nombre.trim().length === 0
-        ) {
+        if (typeof nombre !== "string" || nombre.trim().length === 0) {
             return res.status(400).json({
                 error: "El nombre de la categoría es obligatorio."
             });
         }
-
         const tiposPermitidos = [
             "genero",
             "tematica",
@@ -1482,7 +1561,7 @@ app.delete("/listas/:id/permanente", autenticarUsuario, async (req, res, next) =
             });
         }
 
-        // Buscamos si la lista realmente está en la papelera del usuario
+          // Buscamos si la lista realmente está en la papelera del usuario
         const listas = await db.getListasEnPapeleraByUsuarioID(req.user.id_usuario);
         const lista = listas.find(l => Number(l.id_lista) === idLista);
 
@@ -1491,8 +1570,7 @@ app.delete("/listas/:id/permanente", autenticarUsuario, async (req, res, next) =
                 error: "La lista no está en tu papelera."
             });
         }
-
-        // OJO: Esta función debe existir en tu archivo database.js
+      
         const eliminada = await db.deleteLista(idLista);
 
         if (!eliminada) {
@@ -1600,8 +1678,7 @@ app.use((req, res) => {
     });
 });
 
-/*--- GESTIÓN CENTRALIZADA DE ERRORES ---*/
-
+/*--- MANEJO DE ERRORES ---*/
 app.use((error, req, res, next) => {
     if (res.headersSent) {
         return next(error);
@@ -1627,16 +1704,14 @@ app.use((error, req, res, next) => {
     });
 });
 
-/*--- INICIAR SERVIDOR ---*/
-
+/*--- Aqui inicia el servidor ---*/
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(
         `Servidor de Assetto escuchando en el puerto ${PORT}`
     );
 });
 
-/*--- CERRAR SERVIDOR Y BASE DE DATOS ---*/
-
+/*--- Aqui se hace el cierre del servidor y la Base de Datos ---*/
 let shuttingDown = false;
 
 async function shutdown(signal) {
