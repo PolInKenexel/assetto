@@ -30,7 +30,8 @@ const corsOptions = {
     origin: [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
-        "http://localhost:8081" // Permite al navegador de VS Code
+        "http://localhost:8081",
+        "http://localhost:8082" // Permite al navegador de VS Code
     ],
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
 };
@@ -558,6 +559,16 @@ app.get("/canciones", autenticarUsuario, async (req, res, next) => {
     }
 });
 
+/*--- CANCIONES EN LA PAPELERA ---*/
+app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
+    try {
+        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
+        return res.status(200).json(canciones);
+    } catch (error) {
+        next(error);
+    }
+});
+
 /*--- LISTAS DEL USUARIO AUTENTICADO ---*/
 app.get("/listas", autenticarUsuario, async (req, res, next) => {
     try {
@@ -624,15 +635,7 @@ app.get("/canciones/:id", autenticarUsuario, async (req, res, next) => {
     }
 });
 
-/*--- CANCIONES EN LA PAPELERA ---*/
-app.get("/canciones/papelera", autenticarUsuario, async (req, res, next) => {
-    try {
-        const canciones = await db.getCancionesEnPapeleraByUsuarioID(req.user.id_usuario);
-        return res.status(200).json(canciones);
-    } catch (error) {
-        next(error);
-    }
-});
+
 
 /*--- OBTENER CATEGORIAS DE UNA CANCION ---*/
 app.get("/canciones/:id/categorias", autenticarUsuario, async (req, res, next) => {
